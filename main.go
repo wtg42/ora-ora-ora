@@ -4,18 +4,16 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/spf13/cobra"
 	"github.com/wtg42/ora-ora-ora/cmd"
 )
 
 func main() {
-	var err error
-	var c *cobra.Command
+	oraCmd := cmd.NewOraCmd()
+	oraCmd.RootCmd.AddCommand(oraCmd.StartTui())
 
-	if c, err = cmd.ExecuteRootCommand(); err != nil {
+	if c, err := oraCmd.RootCmd.ExecuteC(); err != nil {
 		os.Exit(1)
-
+	} else {
+		fmt.Println(c.Name())
 	}
-
-	fmt.Println(c.Name())
 }
