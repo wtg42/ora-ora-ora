@@ -48,7 +48,7 @@ func (a AddNote) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// When Enter is pressed, save the content and quit.
 			a.Content = a.textInput.Value()
 			// Simple tag parsing: words starting with #
-			for word := range strings.FieldsSeq(a.Content) {
+			for _, word := range strings.Fields(a.Content) {
 				if strings.HasPrefix(word, "#") {
 					a.Tags = append(a.Tags, strings.TrimPrefix(word, "#"))
 				}

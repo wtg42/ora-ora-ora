@@ -52,31 +52,6 @@ model: hf.co/bartowski/Llama-3.2-3B-Instruct-GGUF:Q4_K_M
 
 ---
 
-### 🔧 Golang 封裝邏輯（簡化）
-
-```go
-type PromptTemplate struct {
-	System   string `yaml:"system"`
-	Template string `yaml:"template"`
-	Model    string `yaml:"model"`
-}
-
-func BuildOllamaPayload(tmpl PromptTemplate, question string, context string) map[string]interface{} {
-	prompt := strings.ReplaceAll(tmpl.Template, "{{question}}", question)
-	prompt = strings.ReplaceAll(prompt, "{{context}}", context)
-
-	return map[string]interface{}{
-		"model": tmpl.Model,
-		"messages": []map[string]string{
-			{"role": "system", "content": tmpl.System},
-			{"role": "user", "content": prompt},
-		},
-	}
-}
-```
-
----
-
 ### 📤 送出 Ollama API 請求
 
 ```http
@@ -273,53 +248,6 @@ Content-Type: application/json
 - **快取**：相同（query, filter）命中直接回傳，降低延遲。
 
 ---
-
-## 10. 參考實作（Go，簡化）
-> 建議以型別取代 `map[string]interface{}`，並使用 `text/template` 渲染，降低替換脆弱性。
-
-```go
-// YAML 對應型別
-type PromptTemplate struct {
-    System   string            `yaml:"system"`
-    Template string            `yaml:"template"`
-    Model    string            `yaml:"model"`
-    Language string            `yaml:"language"`
-    Options  map[string]any    `yaml:"options"`
-}
-
-// 請求型別
-type Message struct {
-    Role    string `json:"role"`
-    Content string `json:"content"`
-}
-
-type ChatReq struct {
-    Model    string                 `json:"model"`
-    Messages []Message              `json:"messages"`
-    Stream   bool                   `json:"stream"`
-    Options  map[string]any         `json:"options,omitempty"`
-}
-
-// 渲染模板（以 text/template）
-func Render(tmplStr string, data any) (string, error) { /* ... */ return "", nil }
-
-func BuildPayload(tmpl PromptTemplate, question, context string, stream bool) (ChatReq, error) {
-    userContent, err := Render(tmpl.Template, map[string]string{
-        "question": question,
-        "context":  context,
-    })
-    if err != nil { return ChatReq{}, err }
-    return ChatReq{
-        Model: tmpl.Model,
-        Messages: []Message{
-            {Role: "system", Content: tmpl.System},
-            {Role: "user",   Content: userContent},
-        },
-        Stream:  stream,
-        Options: tmpl.Options,
-    }, nil
-}
-```
 
 > **Agent 實作提示**：直接依此資料結構組裝 JSON 後呼叫 `/api/chat`；若 `stream=true` 則走串流顯示。
 
