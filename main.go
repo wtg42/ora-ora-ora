@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/wtg42/ora-ora-ora/cmd"
@@ -11,9 +10,13 @@ func main() {
 	oraCmd := cmd.NewOraCmd()
 	oraCmd.RootCmd.AddCommand(oraCmd.StartTui())
 
-	if c, err := oraCmd.RootCmd.ExecuteC(); err != nil {
+	// if no args, default to start-tui
+	if len(os.Args) == 1 {
+		args := append(os.Args, "start-tui")
+		oraCmd.RootCmd.SetArgs(args[1:])
+	}
+
+	if _, err := oraCmd.RootCmd.ExecuteC(); err != nil {
 		os.Exit(1)
-	} else {
-		fmt.Println(c.Name())
 	}
 }
