@@ -1,12 +1,16 @@
 package cmd
 
 import (
-	"fmt"
-	"strings"
+    "fmt"
+    "strings"
+    "time"
 
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/spf13/cobra"
-	"github.com/wtg42/ora-ora-ora/tui"
+    tea "github.com/charmbracelet/bubbletea"
+    "github.com/spf13/cobra"
+    "github.com/wtg42/ora-ora-ora/config"
+    "github.com/wtg42/ora-ora-ora/search"
+    "github.com/wtg42/ora-ora-ora/storage"
+    "github.com/wtg42/ora-ora-ora/tui"
 )
 
 type OraCmd struct {
@@ -31,12 +35,12 @@ func NewOraCmd() *OraCmd {
 // StartTui creates and returns a Cobra command that starts the TUI interface.
 // This allows the caller to add it to the RootCmd using AddCommand().
 func (o *OraCmd) StartTui() *cobra.Command {
-	return &cobra.Command{
-		Use:   "start-tui",
-		Short: "啟動 TUI 介面",
-		Long:  "啟動文字使用者介面 TUI",
-		Run: func(cmd *cobra.Command, args []string) {
-			m := tui.NewAddNote()
+    return &cobra.Command{
+        Use:   "start-tui",
+        Short: "啟動 TUI 介面",
+        Long:  "啟動文字使用者介面 TUI",
+        Run: func(cmd *cobra.Command, args []string) {
+            m := tui.NewAddNote()
 
 			final, err := tea.NewProgram(m).Run()
 			if err != nil {
@@ -50,11 +54,43 @@ func (o *OraCmd) StartTui() *cobra.Command {
 				return
 			}
 
-			// Output the result so callers can capture it.
-			fmt.Println("Note:", note.Content)
-			if len(note.Tags) > 0 {
-				fmt.Println("Tags:", strings.Join(note.Tags, ","))
-			}
-		},
-	}
+            // 儲存筆記到檔案並即時索引（in-memory）。
+            id, err := storage.NewID()
+            if err != nil {
+                fmt.Println("failed to generate id:", err)
+                return
+            }
+            now := time.Now()
+            saved := storage.Note{
+                ID:        id,
+                Content:   note.Content,
+                Tags:      note.Tags,
+                CreatedAt: now,
+                UpdatedAt: now,
+            }
+
+            cfg := config.Default()
+            fs, err := storage.NewFileStorage(cfg.Data.NotesDir)
+            if err != nil {
+                fmt.Println("failed to open storage:", err)
+                return
+            }
+            if err := fs.Save(saved); err != nil {
+                fmt.Println("failed to save note:", err)
+                return
+            }
+
+            // 即時索引（目前為 in-memory，主要用於後續流程一致）
+            idx, err := search.OpenOrCreate(cfg.Data.IndexDir)
+            if err == nil {
+                _ = idx.IndexNote(saved)
+                _ = idx.Close()
+            }
+
+            fmt.Println("Saved Note ID:", saved.ID)
+            if len(saved.Tags) > 0 {
+                fmt.Println("Tags:", strings.Join(saved.Tags, ","))
+            }
+        },
+    }
 }
