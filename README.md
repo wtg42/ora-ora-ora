@@ -18,7 +18,7 @@
 - 建置與執行：
   - 啟動 TUI 原型：`go run .` 或 `go run . start-tui`
   - 編譯：`go build -o ./bin/ora-ora-ora .`
-- 狀態：目前提供「新增筆記」的 TUI 原型；CLI `add/ask` 功能將於後續版本加入（WIP）。
+- 狀態：提供「新增筆記」TUI 與 CLI `add/ask`；`ask` 可選擇呼叫 LLM（非串流）。
 
 ---
 
@@ -27,9 +27,11 @@
 - 啟動 TUI：
   - `go run . start-tui`
   - 在輸入欄輸入內容並按 Enter 結束；輸入中的 `#tag` 會自動解析為標籤。
-- 預告 CLI 指令（WIP）：
-  - `ora add "今天研究 Bleve #search #golang"`
-  - `ora ask "昨天我做了什麼？"`
+- CLI 指令：
+  - 新增筆記：`go run . add "今天研究 Bleve #search #golang"`
+  - 檢索片段（不呼叫 LLM）：`go run . ask "Bleve" --topk 5`
+  - 啟用 LLM 回答（需已安裝模型）：
+    `go run . ask "Bleve 用途是什麼？" --topk 5 --use-llm --ollama-host http://localhost:11434 --model hf.co/bartowski/Llama-3.2-3B-Instruct-GGUF:Q4_K_M --template prompt/ask.zh-tw.yaml`
 
 ---
 
@@ -39,8 +41,8 @@
 - ✅ 指令模組：`cmd/`（主指令在 `cmd.go`；擴充子指令如 `add/ask`）。
 - ✅ TUI 元件：`tui/`（Bubble Tea 架構；目前有 `add_note.go`）。
 - 檢索與 AI 模組：
-  - ✅ `search/`：目前提供 in-memory Index；後續替換為 Bleve 實作，索引存於 `data/index/`。
-  - ✅ `agent/`：目前為 `MockLLM`；後續串接 Ollama `/api/chat`（非串流）。
+  - ✅ `search/`：目前提供 in-memory Index；後續可替換為 Bleve 實作，索引存於 `data/index/`。
+  - ✅ `agent/`：已提供 Ollama 客戶端（非串流 `/api/chat`），並保留 `MockLLM` 供測試。
 - ✅ 設定：`config/` 目前回傳預設值；未引入外部 YAML 依賴，保留相容擴充點。
 
 ### 資料模型與介面契約（MVP）
@@ -150,9 +152,9 @@ go test ./... -cover
 - ✅ M3 指令最小版：
   - ✅ `ora add`：寫檔（JSONL）＋更新 in-memory 索引。
   - ✅ `ora ask`：僅顯示檢索片段（暫不呼叫 LLM）。
-- M4 串接 LLM：
-  - 加入模板 `prompt/ask.zh-tw.yaml`（無檔則 fallback 內建）。
-  - 呼叫 Ollama `/api/chat` 非串流；`--template/--model` 旗標。
+- ✅ M4 串接 LLM：
+  - ✅ 加入模板 `prompt/ask.zh-tw.yaml`（無檔則 fallback 內建）。
+  - ✅ `ask` 可選擇呼叫 Ollama `/api/chat`（非串流），新增 `--use-llm/--template/--model/--ollama-host` 與選擇性 options（`--temperature/--top-p/--num-ctx/--num-predict/--keep-alive`）。
 - M5 TUI 整合：
   - AddNote 落盤與提示結果；後續再增查詢頁。
 
@@ -178,6 +180,26 @@ go test ./... -cover
 
 - 若 `FileStorage` 寫入發生問題，可切回 `InMemoryStorage` 路徑與測試，避免卡住整體開發。
 - `search` 仍為 in-memory，不牽涉 Bleve schema，後續替換衝擊小。
+
+---
+
+## M4 完成內容（已完成）
+
+- ✅ `agent`: 新增 `Ollama` 客戶端（非串流），符合既有 `LLM` 介面，保留 `MockLLM` 用於測試。
+- ✅ `cmd/ask`: 新增 `--use-llm` 啟動 LLM 回答，支援 `--model/--ollama-host/--template` 與多項 LLM options。
+- ✅ 模板：新增 `prompt/ask.zh-tw.yaml`，缺檔時使用內建模板（YAML‑lite 解析）。
+
+驗收條件：
+
+- `go run . add "今天研究 Bleve #search #golang"` 成功寫入並顯示 ID。
+- `go run . ask "Bleve" --topk 5` 可列出 Snippet。
+- 已在本機 `ollama pull` 某模型後：
+  `go run . ask "Bleve 用途是什麼？" --topk 5 --use-llm --ollama-host http://localhost:11434 --model <model> --template prompt/ask.zh-tw.yaml` 可顯示 Answer。
+
+風險與回滾：
+
+- 若 Ollama 或模型不可用，僅移除 `--use-llm` 即回到純檢索流程。
+- 模板解析採 YAML‑lite，若格式不符將自動回退到內建模板，避免阻塞流程。
 
 ---
 
