@@ -7,10 +7,10 @@ import (
 )
 
 func main() {
-    oraCmd := cmd.NewOraCmd()
-    oraCmd.RootCmd.AddCommand(oraCmd.StartTui())
-    oraCmd.RootCmd.AddCommand(oraCmd.AddCmd())
-    oraCmd.RootCmd.AddCommand(oraCmd.AskCmd())
+	oraCmd := cmd.NewOraCmd()
+	oraCmd.RootCmd.AddCommand(oraCmd.StartTui())
+	oraCmd.RootCmd.AddCommand(oraCmd.AddCmd())
+	oraCmd.RootCmd.AddCommand(oraCmd.AskCmd())
 
 	// if no args, default to start-tui
 	if len(os.Args) == 1 {
