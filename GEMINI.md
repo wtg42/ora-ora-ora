@@ -1,264 +1,283 @@
-## 📘 ORA-ORA-ORA：CLI AI 筆記系統
+# ORA-ORA-ORA：CLI AI 筆記系統
 
 這是一本地端運行的個人速記與問答系統。使用者可以透過 CLI 指令快速新增筆記，並以自然語言查詢自己的想法或記錄，由本地 AI 模型回答對應內容。
 
 ---
 
-### ⚙️ 技術堆疊
+## 1. 系統構成與專案結構
 
-- **Golang**：實作 CLI 工具、處理命令、載入設定、發送 API 請求
-- **Bleve**：全文索引工具，儲存與查詢使用者筆記
-- **Ollama API Server**：本地 LLM 推論引擎，處理語意與自然語言問答
-
----
-
-### 🧠 功能流程
-
-1. 使用者下指令新增筆記（`ora add`）
-2. 使用者下指令查詢筆記（`ora ask`）
-3. Golang 程式：
-   - 使用 Bleve 搜尋與提問相關的筆記段落（`context`）
-   - 套用 `prompt/ask.zh-tw.yaml` 或 `prompt/ask.en.yaml`
-   - 組成符合 Ollama `/api/chat` 規格的 JSON 請求
-   - 接收模型回覆後輸出
-
----
-
-### 📂 設定檔說明
-
-#### `prompt/ask.zh-tw.yaml` 範例
-
-```yaml
-system: |
-  你是一個筆記助理，會根據使用者的筆記記錄回答他提出的問題。
-template: |
-  問題：{{question}}
-  筆記內容：{{context}}
-model: hf.co/bartowski/Llama-3.2-3B-Instruct-GGUF:Q4_K_M
-language: zh-tw
-```
-
-#### `prompt/weekly.zh-tw.yaml`（週記模式）
-
-```yaml
-system: |
-  你是一個知識摘要工具，請根據以下筆記整理一週的重點。
-template: |
-  以下是本週的筆記內容：
-  {{context}}
-  請整理為條列式摘要，包含主題與要點。
-model: hf.co/bartowski/Llama-3.2-3B-Instruct-GGUF:Q4_K_M
-```
-
----
-
-### 📤 送出 Ollama API 請求
-
-```http
-POST http://localhost:11434/api/chat
-Content-Type: application/json
-
-{
-  "model": "llama3",
-  "messages": [
-    { "role": "system", "content": "你是一個筆記助理..." },
-    { "role": "user", "content": "問題：我昨天寫了什麼？
-筆記內容：..." }
-  ]
-}
-```
-
-回傳格式為：
-
-```json
-{
-  "message": {
-    "role": "assistant",
-    "content": "你昨天寫了關於 Bleve 與 Golang 的索引處理..."
-  }
-}
-```
-
----
-
-### 🏷 支援功能總結
-
-- ✅ 中文與英文自然語言提問
-- ✅ tags / 分群搜尋條件（Bleve 篩選）
-- ✅ YAML prompt 模板可調整語氣與行為
-- ✅ 可整合 cron 自動執行 `ora weekly`（週記總結）
-- ✅ 所有資料本地儲存，無須網路
-
----
-
-如需為不同角色或應用情境擴充 prompt 模板，只需在 `prompt/*.yaml` 加入對應檔案，並於 Golang 程式中選擇載入即可。
-
-# GEMINI CLI Agent 參考文件（ORA‑ORA‑ORA 專案）
-
-> 此文件提供 **GEMINI CLI Agent** 在本機運作時所需的最小規格（MVP）＋可擴充欄位。Agent 可依本規格完成：檢索 → 組 Prompt → 呼叫本機 LLM（Ollama）→ 回傳答案。所有資料與推論均可在本機完成。
-
----
-
-## 0. 目的（Purpose）
-- 描述 CLI Agent 應如何與本系統互動：指令流程、設定檔格式、API 端點、錯誤處理與擴充點。
-- 目標：**先跑得動的 MVP**，並保留未來擴充（多模型路由、Rerank、觀測）的空間。
-
----
-
-## 1. 系統構成（Stack）
-- **Golang CLI**：`ora add` / `ora ask`；載入設定、檢索、組請求、輸出。
-- **Bleve**：全文索引與檢索；產生 `context` 片段。
+- **Golang CLI**：使用 `Cobra` 框架實作 `ora add` / `ora ask` 等指令。
+- **TUI 元件**：使用 `Bubble Tea` 框架實作互動介面。
+- **Bleve**：全文索引與檢索，產生 `context` 片段。
 - **Ollama API**（本機）：`/api/chat` 進行回覆生成。
 
-> 預設為本機運行；網路離線亦可使用。
+### 專案結構
+- `main.go`: 程式入口，初始化 Cobra 與 CLI。
+- `cmd/`: 存放 CLI 指令模組。
+- `tui/`: 存放 Bubble Tea TUI 元件。
+- `storage/`: 負責筆記的檔案儲存（JSONL）。
+- `search/`: 負責與 Bleve 互動的全文檢索。
+- `agent/`: 處理與 Ollama API 的互動。
+- `config/`: 讀取 YAML 設定檔。
+- `prompt/`: 存放 LLM 的 Prompt 模板。
+- `data/`: 存放使用者資料（筆記、索引）。
 
 ---
 
-## 2. 指令與流程（Flow）
-1) `ora add <note>`：寫入筆記並更新索引。
-2) `ora ask <question>`：
-   - 以 Bleve 查詢相關片段（Top‑k；見 §5）。
-   - 套用對應模板（§3）。
-   - 呼叫 Ollama `/api/chat`（§4）。
-   - 將回答輸出（預設繁體中文，除非模板或旗標覆寫）。
+## 2. 核心流程
+
+1.  **`ora add <note>`**：
+    - 透過 `storage` 模組將筆記儲存至 `data/notes/YYYY-MM-DD.jsonl`。
+    - 透過 `search` 模組更新 Bleve 索引。
+2.  **`ora ask <question>`**：
+    - 正規化查詢字串。
+    - 使用 `search` 模組以 Bleve 查詢相關片段（Top-K）。
+    - 載入 `prompt/*.yaml` 模板。
+    - 注入 `{{question}}` 與 `{{context}}` 變數。
+    - 透過 `agent` 模組呼叫 Ollama `/api/chat` API。
+    - 將模型回覆輸出至終端。
 
 ---
 
-## 3. 設定檔格式（YAML）
-> 放於 `prompt/*.yaml`；Agent 需讀取並注入變數。可依 `--template` 指定檔名，或依語系自動選擇。
+## 3. 模組契約與資料模型 (Go 介面)
 
-### 3.1 問答模板 `prompt/ask.zh-tw.yaml`
-```yaml
-system: |
-  你是一個筆記助理，只能根據「提供的筆記內容」回答。
-  若資訊不足，請誠實說明，勿臆測。
-  最終請使用「繁體中文」回答。
-template: |
-  【問題】\n{{question}}\n\n【相關筆記片段】\n{{context}}\n\n【回答規則】\n- 先給出直接答案，再補充依據（列出來源片段的關鍵句）。\n- 若片段彼此矛盾，請標示「衝突」並各自說明。\n- 若無足夠資訊，請要求我補充關鍵字或筆記連結。
-model: hf.co/bartowski/Llama-3.2-3B-Instruct-GGUF:Q4_K_M
-language: zh-tw
-# 可選：可讓 Agent 覆寫 Ollama options（§4.2）
-options:
-  temperature: 0.2
-  top_p: 0.9
-  num_ctx: 8192
-  keep_alive: 10m
-```
-
-### 3.2 週記模板 `prompt/weekly.zh-tw.yaml`
-```yaml
-system: |
-  你是一個知識摘要工具，請將筆記整理成「本週回顧」。
-template: |
-  【本週筆記】\n{{context}}\n\n【輸出格式】\n- 主題（標題句）\n- 關鍵要點（條列）\n- 待辦與下一步（條列）
-model: hf.co/bartowski/Llama-3.2-3B-Instruct-GGUF:Q4_K_M
-language: zh-tw
-```
-
-> 變數：`{{question}}`, `{{context}}` 必須可被替換；`language` 建議在 system 內生效（已範例化）。
-
----
-
-## 4. LLM API 規格（Ollama）
-### 4.1 端點
-```
-POST http://localhost:11434/api/chat
-Content-Type: application/json
-```
-
-### 4.2 請求（非串流）
-```json
-{
-  "model": "hf.co/bartowski/Llama-3.2-3B-Instruct-GGUF:Q4_K_M",
-  "messages": [
-    { "role": "system", "content": "你是一個筆記助理...（取自 YAML system）" },
-    { "role": "user",   "content": "【問題】...\n【相關筆記片段】...（由 template 渲染）" }
-  ],
-  "stream": false,
-  "options": {
-    "temperature": 0.2,
-    "top_p": 0.9,
-    "num_ctx": 8192,
-    "num_predict": 1024,
-    "keep_alive": "10m"
+### 3.1 `storage` (檔案儲存)
+- **Note 結構**:
+  ```go
+  type Note struct {
+      ID        string    // UUIDv4
+      Content   string
+      Tags      []string
+      CreatedAt time.Time
+      UpdatedAt time.Time
   }
-}
-```
-
-### 4.3 回應（非串流）
-```json
-{
-  "message": {
-    "role": "assistant",
-    "content": "最終答案..."
-  }
-}
-```
-
-### 4.4 串流（可選）
-- 將 `stream` 設為 `true`，回應將分段送出（SSE 風格）。
-- Agent 可即時顯示，結尾組合成完整訊息。
-
----
-
-## 5. 檢索與注入（RAG）
-> MVP 可用固定參數，後續可 CLI 旗標覆寫（如 `--top-k=5 --max-tokens=3000`）。
-
-- **Chunk**：建議 600–1,200 字符，overlap 10–20%。
-- **Top‑k**：預設 5；依分數排序取前 k 片段。
-- **去重**：同檔案連續命中合併；相似度高者去重。
-- **截斷**：依 `num_ctx` 估算最大可注入 tokens，超過則尾端截斷並標記「已截斷」。
-- **邊界**：以明確分隔符包住每段 context，降低 prompt 注入風險，例如：
   ```
-  === BEGIN SNIPPET: <title>#<line-range> ===
-  <content>
-  === END SNIPPET ===
+- **介面**:
+  ```go
+  type Storage interface {
+      Save(note Note) error
+      List() ([]Note, error)
+  }
   ```
 
+### 3.2 `search` (全文檢索)
+- **Snippet 結構**:
+  ```go
+  type Snippet struct {
+      NoteID     string
+      Excerpt    string
+      Score      float64
+      TagMatches []string
+  }
+  ```
+- **介面**:
+  ```go
+  type Index interface {
+      IndexNote(note Note) error
+      Query(q string, topK int, tags []string) ([]Snippet, error)
+      Close() error
+  }
+  ```
+
+### 3.3 `agent` (LLM 代理)
+- **Options 結構**:
+  ```go
+  type Options struct {
+      Temperature float64
+      TopP        float64
+      NumCtx      int
+      NumPredict  int
+      KeepAlive   time.Duration
+  }
+  ```
+- **介面**:
+  ```go
+  type LLM interface {
+      Chat(ctx context.Context, system, user string, opts Options) (string, error)
+  }
+  ```
+
+### 3.4 `config` (設定檔載入)
+- **Config 結構**:
+  ```go
+  type Config struct {
+      OllamaHost string
+      Model      string
+      Data struct {
+          NotesDir string
+          IndexDir string
+      }
+      TUI struct {
+          Width int
+      }
+  }
+  ```
+- **介面**:
+  ```go
+  func Load(path string) (Config, error)
+  ```
+
 ---
 
-## 6. 錯誤處理（Agent 指南）
-- **Ollama 未啟動**：顯示提示 `請先執行: ollama serve`。可自動重試 1 次（延遲 1s）。
-- **模型不存在**：提示 `ollama pull <model>`，並列出目前可用模型清單（若可取得）。
-- **逾時**：回報逾時並建議降低 `num_predict`／縮小 context。
-- **空檢索**：告知「筆記不足」，建議先 `ora add` 或提供關鍵詞。
-- **回應過長**：要求 Agent 轉為串流或降低 `num_predict`。
+## 4. 設定檔格式
+
+### 4.1 Prompt 模板 (`prompt/*.yaml`)
+> 用於定義不同任務下 LLM 的行為與輸出格式。
+
+- **`ask.zh-tw.yaml` (問答)**
+  ```yaml
+  system: |
+    你是一個筆記助理，只能根據「提供的筆記內容」回答。
+    若資訊不足，請誠實說明，勿臆測。
+  template: |
+    【問題】
+    {{question}}
+
+    【相關筆記片段】
+    {{context}}
+  model: hf.co/bartowski/Llama-3.2-3B-Instruct-GGUF:Q4_K_M
+  language: zh-tw
+  options:
+    temperature: 0.2
+  ```
+- **`weekly.zh-tw.yaml` (週記)**
+  ```yaml
+  system: |
+    你是一個知識摘要工具，請將筆記整理成「本週回顧」。
+  template: |
+    【本週筆記】
+    {{context}}
+
+    【輸出格式】
+    - 主題（標題句）
+    - 關鍵要點（條列）
+    - 待辦與下一步（條列）
+  model: hf.co/bartowski/Llama-3.2-3B-Instruct-GGUF:Q4_K_M
+  ```
+
+### 4.2 系統設定 (`config.yaml`)
+> 用於設定 Ollama 位址、預設模型、資料路徑等。由 `config.Load()` 載入。
 
 ---
 
-## 7. 安全與治理
-- **Prompt 注入防護**：以系統訊息明確規範「只依 context 回答」，外部指令需忽略。
-- **來源標註**：回答附來源片段關鍵句（可選）。
-- **隱私**：所有資料留在本機，不上傳網路。
+## 5. Ollama API 規格
+
+- **端點**: `POST http://localhost:11434/api/chat`
+- **請求 (非串流)**:
+  ```json
+  {
+    "model": "hf.co/bartowski/Llama-3.2-3B-Instruct-GGUF:Q4_K_M",
+    "messages": [
+      { "role": "system", "content": "..." },
+      { "role": "user",   "content": "..." }
+    ],
+    "stream": false,
+    "options": {
+      "temperature": 0.2,
+      "top_p": 0.9,
+      "num_ctx": 8192
+    }
+  }
+  ```
+- **回應**:
+  ```json
+  {
+    "message": {
+      "role": "assistant",
+      "content": "最終答案..."
+    }
+  }
+  ```
 
 ---
 
-## 8. CLI Agent 行為建議（即插即用）
-- 預設回答語系由模板 system 決定（此處為「繁體中文」）。
-- 可支援旗標覆寫：`--model`、`--top-k`、`--stream`、`--num-predict`、`--temperature`。
-- 若問題過大或過泛，Agent 應主動要求**關鍵詞**或**縮小範圍**。
-- 週記模式：載入 `prompt/weekly.zh-tw.yaml`，context 為近 7 天筆記（或依旗標 `--days`）。
+## 6. 檢索與注入 (RAG)
+
+- **Top‑K**: 預設 20；可由 `--topk` 旗標覆寫。
+- **截斷**: 依模型 `num_ctx` 上下文視窗大小估算最大可注入 tokens，超過則尾端截斷。
+- **邊界**: 建議以明確分隔符（如 `=== BEGIN SNIPPET ===`）包住每段 context，降低注入風險。
 
 ---
 
-## 9. 擴充路線圖（可選）
-- **多模型路由**：短問快答→3B；複雜推理→7B/8B。
-- **Rerank 模組**：以輕量 cross‑encoder 進行重排序。
-- **觀測**：紀錄 latency、token 用量；便於優化 P50/P95。
-- **快取**：相同（query, filter）命中直接回傳，降低延遲。
+## 7. 錯誤處理指南
+
+- **Ollama 未啟動/不可達**: 提示 `請先執行: ollama serve`，或檢查 `--ollama-host` 旗標。
+- **模型不存在**: 提示 `ollama pull <model>`。
+- **索引缺失**: 初次使用時應自動建立索引。
+- **模板缺失**: 回退至內建預設模板並顯示警告。
+- **空檢索**: 告知「筆記不足」，建議先 `ora add` 或更換關鍵詞。
+- **I/O 失敗**: 顯示具體檔案路徑與權限/磁碟空間問題建議。
 
 ---
 
-> **Agent 實作提示**：直接依此資料結構組裝 JSON 後呼叫 `/api/chat`；若 `stream=true` 則走串流顯示。
+## 8. Agent 行為建議
+
+- **旗標覆寫**: 應支援 `--model`、`--top-k`、`--template` 等核心參數覆寫。
+- **互動**: 若問題模糊，應主動要求使用者提供**關鍵詞**或**縮小範圍**。
+- **週記模式**: 執行 `ora weekly` 時，載入 `prompt/weekly.zh-tw.yaml`，`context` 為近 7 天筆記（可由 `--days` 調整）。
 
 ---
 
-## 11. 支援功能總結
-- ✅ 中英雙語問答（模板驅動）
-- ✅ 檢索條件（tags/分群），Top‑k 注入
-- ✅ YAML 模板可定義語氣、輸出結構與 LLM 選項
-- ✅ 週記模式（cron 可排程）
-- ✅ 完全本機化，離線可用
+## 9. 支援功能總結
+
+- ✅ **完全本機化**: 所有資料與模型推論皆在本地完成，支援離線使用。
+- ✅ **自然語言問答**: 透過 RAG 技術，結合筆記內容回答問題。
+- ✅ **標籤過濾**: 可在查詢時使用 `tags:tagA,tagB` 語法篩選特定筆記。
+- ✅ **可自訂 Prompt**: 透過 `prompt/*.yaml` 檔案調整模型語氣、行為與輸出格式。
+- ✅ **多樣化任務**: 支援一般問答、週記總結等不同應用情境。
+
+---
+
+## 10. 路線圖 (Roadmap)
+
+- **M1**: 文件落地，定義專案架構、介面與流程。
+- **M2**: 建立 `storage/`, `search/`, `agent/`, `config/` 模組的介面骨架與最小化實作。
+- **M3**: 完成 `ora add` 與 `ora ask` 指令的 CLI 最小功能（`ask` 僅顯示檢索結果）。
+- **M4**: 完整串接 Ollama API，實現基於 RAG 的問答功能。
+- **M5**: 整合 TUI 介面，提供更豐富的互動體驗。
+
+---
+
+## 11. 安全與邊界 (必讀)
+
+- **檔案系統**: 禁止讀寫或上傳 `.env`, `secrets.*`, `*.key`, `id_*`, `*.pem`, `node_modules/`, `vendor/`, `storage/`, `tmp/`, `.git/`，以及任何被 `.gitignore` 忽略的敏感檔案。
+- **工作目錄**: 所有操作應限制在專案工作目錄內。
+- **網路**: 未經明確許可，不得任意連接外部網路或下載套件。
+- **破壞性操作**: 對於大量重構、刪除檔案、修改 CI/CD 等操作，需先提出變更計畫、風險與回滾策略。
+
+---
 
 ## 12. 開發注意事項
-- 修改檔案已一隻檔案為主，若需要修改多個檔案，第二個檔案之後則是先給予建議，不要直接接續修改。
+
+- **小步修改**: 優先專注於修改單一檔案。若需修改多個檔案，建議分次進行或先提出計畫，避免一次性引入大量變更。
+
+---
+
+## 13. 建置與測試
+
+- **程式碼格式化與檢查**:
+  ```bash
+  go fmt ./...
+  go vet ./...
+  ```
+- **執行測試**:
+  ```bash
+  go test ./... -cover
+  ```
+- **本地執行 CLI**:
+  ```bash
+  go run . --help
+  ```
+- **編譯執行檔**:
+  ```bash
+  go build -o ./bin/ora-ora-ora .
+  ```
+
+---
+
+## 14. 測試指導方針
+
+- **`search` 模組**: 應測試索引建立、關鍵字查詢、`tags` 過濾、空結果處理、分數排序等。
+- **`agent` 模組**: 使用 mock server 驗證 API payload、options、錯誤處理與逾時機制。
+- **`config` 模組**: 應測試預設值載入、YAML 檔案覆寫、以及對非法格式的容錯能力。
+- **`tui` 模組**: 應測試狀態轉換、使用者輸入事件（如 Enter/Esc）、以及內容與標籤的解析。

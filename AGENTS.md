@@ -227,7 +227,7 @@ func Load(path string) (Config, error)
 - I/O 失敗：顯示具體路徑與建議（權限/磁碟/唯讀環境）。
 
 ## 測試矩陣（table‑driven）
- 
+
 - search：
   - IndexNote/Query 流程、tags 過濾、空結果、分數排序穩定性。
   - in‑memory stub 與未來 Bleve 實作行為一致性。
@@ -255,7 +255,7 @@ func Load(path string) (Config, error)
 - 禁止讀寫或上傳：`.env`, `secrets.*`, `*.key`, `id_*`, `*.pem`, `node_modules/`, `vendor/`, `storage/`, `tmp/`, `.git/`，及任何被 `.gitignore` 忽略的敏感檔案。
 - 僅在專案工作目錄內作業；無特別許可不得連外或下載套件。
 - 對可能破壞性操作（大量重構、刪檔、改 CI）：先提出變更計畫、風險與回滾，再行動。
-- 「快速執行」情境：若明示，方可提升權限執行命令；仍需列出命令與目的。
+- 「快速執行」情境**依賴版本**：為確保專案能受益於最新的功能與安全修正，開發時應優先選用函式庫的最新穩定版本。若有版本鎖定之需求，需於文件中明確記錄其原因與影響
 - search：索引/查詢、tags 過濾、空結果、分數排序穩定性。
 - agent：mock HTTP 驗證 payload、options 與錯誤分支。
 - config：預設值合併、非法 YAML、缺欄位處理。

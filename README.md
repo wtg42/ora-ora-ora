@@ -32,6 +32,24 @@
 
 ---
 
+## 第三方相依（建議）
+
+- 必備/計畫引入：
+  - YAML 解析：`github.com/goccy/go-yaml`（選定，用於 `config.Load`；取代已封存的 `gopkg.in/yaml.v3`）。
+  - 全文檢索：`blevesearch/bleve`（M4/M5 導入，用於 `search` 實作）。
+  - TUI 框架：`github.com/charmbracelet/bubbletea`、`github.com/charmbracelet/bubbles`、`github.com/charmbracelet/lipgloss`（M5 導入）。
+- 建議（可選）：
+  - CLI：`github.com/spf13/cobra`（M3 視情況加入，作為薄層 shim）。
+  - UUID v4：`github.com/google/uuid`（或以 `crypto/rand` 自行實作 v4）。
+  - 檔案監控：`github.com/fsnotify/fsnotify`（如需設定/資料熱更新）。
+  - 中文斷詞/分析器：`gojieba` 或 Bleve 專用 analyzer（需提升中文召回/精度時）。
+  - 終端樣式（非 TUI 場景）：`github.com/fatih/color`。
+- 依賴策略：
+  - 初期盡量少依賴：`search` 以 in‑memory stub 起步，待介面穩定再導入 Bleve。
+  - 封裝點：在 `config` 內集中 `unmarshalYAML`，未來若需替換 YAML 套件只動一處。
+
+---
+
 ## 當前開發步驟（Roadmap / Status）
 
 - 里程碑進度：
