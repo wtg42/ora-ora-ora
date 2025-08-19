@@ -9,12 +9,6 @@
 
 ---
 
-## 專案狀態
-
-所有 Golang 原始碼檔案已被刪除。目前的專案結構只剩下文件、設定檔和資料。
-
----
-
 ## 藍圖（Blueprint）
 
 - 目標：本機端的速記與問答系統，提供 CLI/TUI 新增筆記與以自然語言查詢，回覆由本地 LLM 完成。
@@ -91,3 +85,28 @@
   - 請確認 `data/` 可寫入；在唯讀環境請切換到可寫目錄後重試。
 - Windows/WSL 提示：
   - 建議於 WSL2 或 macOS/Linux 直接使用較穩定。
+
+---
+
+## 開發紀錄：config.Load 現況（暫存）
+
+- 版本與範圍：`config/load.go` 的 `Load()` 實作現況總結。
+- 預設值：
+  - `OllamaHost = http://localhost:11434`
+  - `Model = llama3`
+  - `Data.NotesDir = data/notes`
+  - `Data.IndexDir = data/index`
+  - `TUI.Width = 80`
+- 目前行為：
+  - 空路徑：回傳預設，無錯誤（符合測試期望）。
+  - 檔案不存在：讀檔錯誤被記錄，但仍回傳預設且無錯（符合測試期望）。
+  - 未解析 YAML：即使檔案存在，內容被忽略，始終回預設（不符測試）。
+  - 非法 YAML：未回傳錯誤（不符測試）。
+  - 結構不符：目前 `Config` 使用扁平欄位（`NotesDir/IndexDir/Width`），測試與介面契約要求巢狀 `Data`/`TUI` 結構。
+  - 多餘輸出：包含 `log.Println` / `fmt.Printf` 的偵錯輸出，應移除以避免汙染 stdout。
+- 待辦（下一步建議，維持 TDD 小步）：
+  - 將 `Config` 調整為巢狀結構：`Data{NotesDir,IndexDir}`、`TUI{Width}`。
+  - 加入 YAML 解析（淺層覆寫預設），合法 YAML 覆寫欄位，未知欄位忽略。
+  - 非法 YAML 需回傳錯誤；空路徑或不存在檔案回預設且不視為錯。
+  - 移除偵錯輸出與不必要副作用。
+- 備註：README 先前註記「目前無 Golang 程式碼」，現狀已有初步 CLI 骨架與多個測試檔，文件將逐步同步修正。

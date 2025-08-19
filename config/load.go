@@ -45,13 +45,22 @@ type Config struct {
 //	if err != nil { /* 處理錯誤 */ }
 func Load(path string) (*Config, error) {
 	// 用戶給予空的路徑直接回傳 default Config
+	d := &Data{
+		NotesDir: "data/notes",
+		IndexDir: "data/index",
+	}
+
+	t := &TUI{
+		Width: 80,
+	}
+
 	if len(path) == 0 {
 		return &Config{
 			OllamaHost: "http://localhost:11434",
 			Model:      "llama3",
-			NotesDir:   Data.NotesDir,
-			IndexDir:   "data/index",
-			Width:      80,
+			NotesDir:   d.NotesDir,
+			IndexDir:   d.IndexDir,
+			Width:      t.Width,
 		}, nil
 	}
 
@@ -66,8 +75,8 @@ func Load(path string) (*Config, error) {
 	return &Config{
 		OllamaHost: "http://localhost:11434",
 		Model:      "llama3",
-		NotesDir:   "data/notes",
-		IndexDir:   "data/index",
-		Width:      80,
+		NotesDir:   d.NotesDir,
+		IndexDir:   d.IndexDir,
+		Width:      t.Width,
 	}, nil
 }
