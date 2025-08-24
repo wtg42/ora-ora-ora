@@ -97,12 +97,9 @@
   - M5 TUI 整合：AddNote 與查詢頁（規劃中）。
 
 - 當前待辦（精簡）：
-  - 初始化 Go 模組與資料夾骨架（不動 TUI）。
-  - `config.Load`：調整為巢狀結構 `Data{NotesDir,IndexDir}`、`TUI{Width}`。
-  - `config.Load`：YAML 覆寫預設；未知欄位忽略；非法 YAML 回錯；檔案缺失回預設且不視為錯。
-  - `config.Load`：移除偵錯輸出；補齊 table‑driven 測試。
-  - `storage`：JSONL `Save/List`；涵蓋 I/O 錯誤分支測試。
-  - `search`：定義 `Index` 介面；提供 in‑memory stub 與測試。
-  - `agent`：`LLM.Chat` 介面與 mock 測試（離線）。
-  - `cmd`：接上 `storage`/`search` 路徑，LLM 之後接。
+  - storage：實作 `jsonlStorage.Save`/`List` 使 `storage/jsonl_test.go` 綠燈；自動建立目錄、唯讀權限回錯、壞行回錯。
+  - storage（可選）：補充測試（跨日檔名檢查、錯誤訊息可讀性）。
+  - search：定義 `Index`/`OpenOrCreate`，提供 in‑memory stub 與測試（分數排序穩定、tags 過濾、空結果）。
+  - agent：定義 `LLM.Chat` 與 `Options`，以 `httptest` 驗證 payload/錯誤與逾時（離線）。
+  - cmd：新增 `ora add/ask` 骨架，先串 `config`/`storage`/`search`，輸出占位訊息。
   - 品質檢查：`go fmt`, `go vet`, `go test ./...`。

@@ -1,11 +1,9 @@
 package config
 
 import (
-	"fmt"
-	"log"
-	"os"
+    "os"
 
-	"github.com/goccy/go-yaml"
+    "github.com/goccy/go-yaml"
 )
 
 // Load 讀取 YAML 設定檔並回傳合併後的設定。
@@ -38,59 +36,27 @@ import (
 //	cfg, err := config.Load("config.yaml")
 //	if err != nil { /* 處理錯誤 */ }
 func Load(path string) (*Config, error) {
-	if len(path) == 0 {
-		conf := DefaultConfig()
-		return &conf, nil
-	}
+    // 空路徑：直接回傳預設
+    if len(path) == 0 {
+        conf := DefaultConfig()
+        return &conf, nil
+    }
 
-	data, err := os.ReadFile(path)
-	if err != nil {
-		log.Printf("Error reading config file: %s", path)
-		conf := DefaultConfig()
-		return &conf, nil
-	}
+    data, err := os.ReadFile(path)
+    if err != nil {
+        // 檔案不存在：回傳預設（不視為錯誤）
+        if os.IsNotExist(err) {
+            conf := DefaultConfig()
+            return &conf, nil
+        }
+        // 其他讀檔錯誤：回傳錯誤
+        return nil, err
+    }
 
-	// Unmarshal yml file here.
-	conf := Config{}
-	if err = yaml.Unmarshal(data, &conf); err != nil {
-		fmt.Printf("%v", err)
-		return nil, err
-	}
-
-	fmt.Printf("Config file contents: %v\n", conf)
-	// Manual Merge config
-	merged_conf := yamlConfigOverride(conf)
-
-	return &merged_conf, nil
-}
-
-// Manually merge default YAML config and user's config
-func yamlConfigOverride(src Config) Config {
-	default_c := DefaultConfig()
-
-	if default_c.OllamaHost != src.OllamaHost {
-		default_c.OllamaHost = src.OllamaHost
-	}
-
-	if default_c.Data != src.Data {
-		default_c.Data = src.Data
-	}
-
-	if default_c.Data.NotesDir != src.Data.NotesDir {
-		default_c.Data.NotesDir = src.Data.NotesDir
-	}
-
-	if default_c.Data.IndexDir != src.Data.IndexDir {
-		default_c.Data.IndexDir = src.Data.IndexDir
-	}
-
-	if default_c.Model != src.Model {
-		default_c.Model = src.Model
-	}
-
-	if default_c.TUI.Width != src.TUI.Width {
-		default_c.TUI.Width = src.TUI.Width
-	}
-
-	return default_c
+    // 以預設值為基底，YAML 覆寫其上
+    merged := DefaultConfig()
+    if err := yaml.Unmarshal(data, &merged); err != nil {
+        return nil, err
+    }
+    return &merged, nil
 }
