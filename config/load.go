@@ -21,49 +21,35 @@ import (
 //   - data.indexDir  -> Config.Data.IndexDir
 //   - tui.width      -> Config.TUI.Width
 //
-// 預設值：
+// 預設值（與 DefaultConfig 一致）：
 //
-//	OllamaHost = "http://localhost:11434"
-//	Model      = "llama3"
+//	OllamaHost   = "http://127.0.0.1:11434"
+//	Model        = "llama3"
 //	Data.NotesDir = "data/notes"
 //	Data.IndexDir = "data/index"
-//	TUI.Width  = 80
+//	TUI.Width    = 80
 //
 // 注意：
 //   - 不讀取 .env；不會進行任何寫檔或索引建立等副作用。
-//   - 未知/多餘的 YAML 欄位會被忽略（不影響解析已知欄位）。
+//   - 未知/多餘的 YAML 欄位目前會被忽略（不影響解析已知欄位）。
 //
 // 範例：
 //
 //	cfg, err := config.Load("config.yaml")
 //	if err != nil { /* 處理錯誤 */ }
 func Load(path string) (*Config, error) {
-	// 用戶給予空的路徑直接回傳 default Config
-	d := Data{
-		NotesDir: "data/notes",
-		IndexDir: "data/index",
-	}
-
-	t := TUI{
-		Width: 80,
-	}
-
 	if len(path) == 0 {
-		// err := errors.New("empty path")
-		return &Config{
-			OllamaHost: "http://127.0.0.1:11434",
-			Model:      "llama3",
-			Data:       d,
-			TUI:        t,
-		}, nil
+		conf := DefaultConfig()
+		return &conf, nil
 	}
 
 	data, err := os.ReadFile(path)
 	if err != nil {
 		log.Printf("Error reading config file: %s", path)
-		return &Config{}, err
+		conf := DefaultConfig()
+		return &conf, nil
 	}
-	
+
 	// Unmarshal yml file here.
 	conf := Config{}
 	if err = yaml.Unmarshal(data, &conf); err != nil {
@@ -72,11 +58,39 @@ func Load(path string) (*Config, error) {
 	}
 
 	fmt.Printf("Config file contents: %v\n", conf)
+	// Manual Merge config
+	merged_conf := yamlConfigOverride(conf)
 
-	return &Config{
-		OllamaHost: "http://127.0.0.1:11434",
-		Model:      "llama3",
-		Data:       d,
-		TUI:        t,
-	}, nil
+	return &merged_conf, nil
+}
+
+// Manually merge default YAML config and user's config
+func yamlConfigOverride(src Config) Config {
+	default_c := DefaultConfig()
+
+	if default_c.OllamaHost != src.OllamaHost {
+		default_c.OllamaHost = src.OllamaHost
+	}
+
+	if default_c.Data != src.Data {
+		default_c.Data = src.Data
+	}
+
+	if default_c.Data.NotesDir != src.Data.NotesDir {
+		default_c.Data.NotesDir = src.Data.NotesDir
+	}
+
+	if default_c.Data.IndexDir != src.Data.IndexDir {
+		default_c.Data.IndexDir = src.Data.IndexDir
+	}
+
+	if default_c.Model != src.Model {
+		default_c.Model = src.Model
+	}
+
+	if default_c.TUI.Width != src.TUI.Width {
+		default_c.TUI.Width = src.TUI.Width
+	}
+
+	return default_c
 }
