@@ -21,7 +21,7 @@ func TestLoad_ConfigDefaultsAndOverlay(t *testing.T) {
 	}
 
 	defaultWant := want{
-		host:     "http://localhost:11434",
+		host:     "http://127.0.0.1:11434",
 		model:    "llama3",
 		notesDir: "data/notes",
 		indexDir: "data/index",
@@ -50,13 +50,13 @@ func TestLoad_ConfigDefaultsAndOverlay(t *testing.T) {
 			name: "valid yaml overlays defaults",
 			yamlBody: "" +
 				"ollamaHost: http://127.0.0.1:11434\n" +
-				"model: qwen2.5\n" +
+				"model: llama3\n" +
 				"data:\n  notesDir: d/notes\n  indexDir: d/index\n" +
 				"tui:\n  width: 100\n",
 			useFile: true,
 			want: want{
 				host:     "http://127.0.0.1:11434",
-				model:    "qwen2.5",
+				model:    "llama3",
 				notesDir: "d/notes",
 				indexDir: "d/index",
 				width:    100,

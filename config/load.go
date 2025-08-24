@@ -4,15 +4,9 @@ import (
 	"fmt"
 	"log"
 	"os"
-)
 
-type Config struct {
-	OllamaHost string `yaml:"ollamaHost"`
-	Model      string
-	NotesDir   string
-	IndexDir   string
-	Width      int
-}
+	"github.com/goccy/go-yaml"
+)
 
 // Load 讀取 YAML 設定檔並回傳合併後的設定。
 // 行為：
@@ -45,38 +39,44 @@ type Config struct {
 //	if err != nil { /* 處理錯誤 */ }
 func Load(path string) (*Config, error) {
 	// 用戶給予空的路徑直接回傳 default Config
-	d := &Data{
+	d := Data{
 		NotesDir: "data/notes",
 		IndexDir: "data/index",
 	}
 
-	t := &TUI{
+	t := TUI{
 		Width: 80,
 	}
 
 	if len(path) == 0 {
+		// err := errors.New("empty path")
 		return &Config{
-			OllamaHost: "http://localhost:11434",
+			OllamaHost: "http://127.0.0.1:11434",
 			Model:      "llama3",
-			NotesDir:   d.NotesDir,
-			IndexDir:   d.IndexDir,
-			Width:      t.Width,
+			Data:       d,
+			TUI:        t,
 		}, nil
 	}
 
 	data, err := os.ReadFile(path)
 	if err != nil {
-		log.Println("Error reading config file:", err)
-		fmt.Println("Using default config values.")
+		log.Printf("Error reading config file: %s", path)
+		return &Config{}, err
+	}
+	
+	// Unmarshal yml file here.
+	conf := Config{}
+	if err = yaml.Unmarshal(data, &conf); err != nil {
+		fmt.Printf("%v", err)
+		return nil, err
 	}
 
-	fmt.Printf("Config file contents: %s\n", data)
+	fmt.Printf("Config file contents: %v\n", conf)
 
 	return &Config{
-		OllamaHost: "http://localhost:11434",
+		OllamaHost: "http://127.0.0.1:11434",
 		Model:      "llama3",
-		NotesDir:   d.NotesDir,
-		IndexDir:   d.IndexDir,
-		Width:      t.Width,
+		Data:       d,
+		TUI:        t,
 	}, nil
 }

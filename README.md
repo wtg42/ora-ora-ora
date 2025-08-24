@@ -88,25 +88,21 @@
 
 ---
 
-## 開發紀錄：config.Load 現況（暫存）
+## 進度同步（AI 專用）
 
-- 版本與範圍：`config/load.go` 的 `Load()` 實作現況總結。
-- 預設值：
-  - `OllamaHost = http://localhost:11434`
-  - `Model = llama3`
-  - `Data.NotesDir = data/notes`
-  - `Data.IndexDir = data/index`
-  - `TUI.Width = 80`
-- 目前行為：
-  - 空路徑：回傳預設，無錯誤（符合測試期望）。
-  - 檔案不存在：讀檔錯誤被記錄，但仍回傳預設且無錯（符合測試期望）。
-  - 未解析 YAML：即使檔案存在，內容被忽略，始終回預設（不符測試）。
-  - 非法 YAML：未回傳錯誤（不符測試）。
-  - 結構不符：目前 `Config` 使用扁平欄位（`NotesDir/IndexDir/Width`），測試與介面契約要求巢狀 `Data`/`TUI` 結構。
-  - 多餘輸出：包含 `log.Println` / `fmt.Printf` 的偵錯輸出，應移除以避免汙染 stdout。
-- 待辦（下一步建議，維持 TDD 小步）：
-  - 將 `Config` 調整為巢狀結構：`Data{NotesDir,IndexDir}`、`TUI{Width}`。
-  - 加入 YAML 解析（淺層覆寫預設），合法 YAML 覆寫欄位，未知欄位忽略。
-  - 非法 YAML 需回傳錯誤；空路徑或不存在檔案回預設且不視為錯。
-  - 移除偵錯輸出與不必要副作用。
-- 備註：README 先前註記「目前無 Golang 程式碼」，現狀已有初步 CLI 骨架與多個測試檔，文件將逐步同步修正。
+- 未完成功能（里程碑）：
+  - M2 介面骨架：建立 `storage/`, `search/`, `agent/`, `config/` 最小實作（下一步）。
+  - M3 指令最小版：`ora add` 寫檔＋索引、`ora ask` 顯示檢索片段（排程中）。
+  - M4 LLM 串接：非串流回覆、模板 `prompt/ask.zh-tw.yaml` 參數化（規劃中）。
+  - M5 TUI 整合：AddNote 與查詢頁（規劃中）。
+
+- 當前待辦（精簡）：
+  - 初始化 Go 模組與資料夾骨架（不動 TUI）。
+  - `config.Load`：調整為巢狀結構 `Data{NotesDir,IndexDir}`、`TUI{Width}`。
+  - `config.Load`：YAML 覆寫預設；未知欄位忽略；非法 YAML 回錯；檔案缺失回預設且不視為錯。
+  - `config.Load`：移除偵錯輸出；補齊 table‑driven 測試。
+  - `storage`：JSONL `Save/List`；涵蓋 I/O 錯誤分支測試。
+  - `search`：定義 `Index` 介面；提供 in‑memory stub 與測試。
+  - `agent`：`LLM.Chat` 介面與 mock 測試（離線）。
+  - `cmd`：接上 `storage`/`search` 路徑，LLM 之後接。
+  - 品質檢查：`go fmt`, `go vet`, `go test ./...`。
