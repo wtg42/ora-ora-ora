@@ -90,16 +90,9 @@
 
 ## 進度同步（AI 專用）
 
-- 未完成功能（里程碑）：
-  - M2 介面骨架：建立 `storage/`, `search/`, `agent/`, `config/` 最小實作（下一步）。
-  - M3 指令最小版：`ora add` 寫檔＋索引、`ora ask` 顯示檢索片段（排程中）。
-  - M4 LLM 串接：非串流回覆、模板 `prompt/ask.zh-tw.yaml` 參數化（規劃中）。
-  - M5 TUI 整合：AddNote 與查詢頁（規劃中）。
-
 - 當前待辦（精簡）：
-  - storage：實作 `jsonlStorage.Save`/`List` 使 `storage/jsonl_test.go` 綠燈；自動建立目錄、唯讀權限回錯、壞行回錯。
-  - storage（可選）：補充測試（跨日檔名檢查、錯誤訊息可讀性）。
-  - search：定義 `Index`/`OpenOrCreate`，提供 in‑memory stub 與測試（分數排序穩定、tags 過濾、空結果）。
-  - agent：定義 `LLM.Chat` 與 `Options`，以 `httptest` 驗證 payload/錯誤與逾時（離線）。
-  - cmd：新增 `ora add/ask` 骨架，先串 `config`/`storage`/`search`，輸出占位訊息。
-  - 品質檢查：`go fmt`, `go vet`, `go test ./...`。
+  - search：提供 `OpenOrCreate` 與 in‑memory `Index`，確保 `search/search_test.go` 綠燈。
+  - agent：補 `NewClient`/`Options` 與非串流 `Chat`，用 mock 通過 `agent/client_test.go`。
+  - tui：補 `bubbletea/bubbles` 相依或以 build tag 排除測試期編譯。
+  - cmd：最小 `ora add/ask` 骨架串接 `storage/search`（暫不接 LLM）。
+  - 測試與品質：`go test ./...` 全綠；`go fmt`、`go vet` 無誤。
