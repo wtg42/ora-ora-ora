@@ -26,6 +26,90 @@
 
 ---
 
+## 技術架構
+
+流程總覽（概念示意）：
+
+```
+[User Query]
+    │
+    ├─ 正規化（trim/case）
+    │
+    ├─ 檢索（Index）
+    │      └─ 目前：in-memory stub（M2/M3）
+    │      └─ 未來：Bleve 持久化索引（M4/M5）
+    │
+    ├─ 片段整合（Top‑K → context）
+    │
+    ├─ 模板渲染（prompt/ask.zh-tw.yaml）
+    │
+    └─ LLM 推論（Ollama /api/chat） → 回覆
+```
+
+Bleve 索引結構（依本專案 Note 資料模型調整）：
+
+```
+[ Index ]   ←——（最小儲存與搜尋單位）
+    │
+    ├── Document #a1 (NoteID: "a1")
+    │       ├── content : "golang bleve search"
+    │       └── tags    : ["dev"]
+    │
+    ├── Document #a2 (NoteID: "a2")
+    │       ├── content : "golang unit test"
+    │       └── tags    : ["test", "dev"]
+    │
+    └── Inverted Index（倒排索引）
+            ├── "golang" → [a1.content, a2.content]
+            ├── "bleve"  → [a1.content]
+            ├── "test"   → [a2.content, a2.tags]
+            └── "dev"    → [a1.tags, a2.tags]
+```
+
+欄位對應（Mapping 建議）：
+- content: 全文（full-text，參與斷詞與排名）
+- tags: 關鍵字（keyword，不分詞，支援過濾）
+- created_at: 可排序欄位（sortable），便於時間序查詢
+
+說明：目前測試階段以 in‑memory `Index` 介面支撐功能與 TDD，待介面穩定後替換為 Bleve 實作；對外介面保持不變。
+
+---
+
+## Bleve 導入計畫（從 in-memory 過渡）
+
+目標：在不改動對外 `search.Index` 介面的前提下，將目前的 in‑memory 索引替換為 Bleve，並保留快速回滾能力。
+
+- 推進步驟（小步、可回滾）：
+  - 保持介面：維持 `type Index interface { IndexNote(model.Note) error; Query(...); Close() }` 不變。
+  - 新增實作：在 `search/` 內新增 `bleveIndex`（後台採用 Bleve），`OpenOrCreate(path)` 依 `path` 決定回傳何種實作：
+    - `path == ""` 或不可寫 → 回退為 in‑memory。
+    - `path != ""` → 嘗試開啟/建立 Bleve 索引。
+  - 一次性重建：首次導入時，由呼叫端（CLI/服務啟動流程）以 `storage.List()` 讀筆記並 `IndexNote(...)` 進行重建（小量資料足夠）。
+  - 設定整合：透過 `config.Config.Data.IndexDir` 指定索引路徑；留空即採 in‑memory。
+
+- Bleve 實作要點：
+  - Mapping：`content`（全文、參與排名）、`tags`（keyword 不分詞）、`created_at`（sortable）。
+  - OpenOrCreate：不存在→建立索引並套用 mapping；存在→開啟。
+  - IndexNote：以 `note.ID` 作為 DocID，寫入 `content/tags/created_at` 欄位。
+  - Query：
+    - `q` 非空→全文查詢（可用 `MatchQuery` 或 `QueryStringQuery`）。
+    - `tags` 非空→以 AND 串接多個 `TermQuery` 過濾。
+    - `topK`→限制回傳數量；排序採預設相關度，必要時加次序欄位確保穩定性。
+  - Close：委派至 Bleve 的 `index.Close()`。
+
+- 風險與緩解：
+  - 排序/斷詞差異：不同分析器可能改變召回與排名 → 測試僅檢查最小行為（長度、NoteID 存在），降低耦合。
+  - I/O/權限：索引路徑不可寫時應自動回退 in‑memory 並打印警示。
+  - 中文分析：若需更佳中文斷詞，再以 analyzer 做為可選優化，不作為導入前置條件。
+
+- 回滾策略：
+  - 組態回滾：`IndexDir` 置空立即回復 in‑memory。
+  - 程式回滾：`bleveIndex` 與 in‑memory 實作分檔獨立，移除/停用 Bleve 檔案即可。
+  - 資料安全：Bleve 索引可重建，無需遷移；原始資料以 JSONL 為準。
+
+說明：依專案「避免過早抽象」原則，先以 in‑memory 驗證介面與測試，再按上述步驟換成 Bleve。全程不更動對外介面，可隨時回退。
+
+
 ## 第三方相依（建議）
 
 - 必備/計畫引入：

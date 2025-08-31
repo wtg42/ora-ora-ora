@@ -5,9 +5,12 @@ import (
 
     "github.com/wtg42/ora-ora-ora/model"
 )
-// Storage 定義筆記儲存的介面契約。
-// Save：將單筆 Note 以 JSONL 方式寫入；List：讀取所有現有筆記。
-// 注意：實作應避免全域狀態，並確保 I/O 錯誤能清楚回報。
+
+// Storage 定義筆記儲存的介面契約（內部版本）。
+// 說明：
+// - 專案對外統一型別為 model.Note（見下方轉接層）。
+// - 內部 storage 實作可使用 storage.Note 作為序列化結構，避免洩漏到其他模組。
+// - 請避免全域狀態，並確保 I/O 錯誤能清楚回報。
 type Storage interface {
     Save(note Note) error
     List() ([]Note, error)
@@ -20,9 +23,9 @@ func NewJSONL(baseDir string) Storage { // TODO: return concrete implementation
     return &jsonlStorage{baseDir: baseDir}
 }
 
-// ---- 測試相容轉接層 ----
-// 某些既有測試使用 model.Note 與 New(dir) 介面。
-// 這裡提供轉接，以不影響內部 Storage 介面的前提下滿足測試。
+// ---- 測試相容轉接層與對外契約 ----
+// 某些測試與上層模組（例如 CLI/TUI）僅認 model.Note。
+// 因此提供轉接層，讓外部以 model.Note 互動，內部維持 storage.Note 以符合序列化需求。
 
 type jsonlAdapter struct{ inner *jsonlStorage }
 
