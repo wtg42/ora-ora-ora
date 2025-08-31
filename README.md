@@ -145,23 +145,18 @@ Bleve 索引結構（依本專案 Note 資料模型調整）：
 
 - 里程碑進度：
   - ✅ M1 文件落地：專案指南與介面契約。
-  - M2 介面骨架：建立 `storage/`, `search/`, `agent/`, `config/` 最小可用實作（下一步）。
-  - M3 指令最小版：`ora add` 寫檔＋索引、`ora ask` 顯示檢索片段（排程中）。
+  - ✅ M2 介面骨架：建立 `storage/`, `search/`, `agent/`, `config/` 最小可用實作。
+  - M3 指令最小版：`ora add` 寫檔＋索引、`ora ask` 顯示檢索片段（下一步）。
   - M4 LLM 串接：非串流回覆、模板 `prompt/ask.zh-tw.yaml` 參數化（規劃中）。
   - M5 TUI 整合：AddNote 與查詢頁（規劃中）。
 
 - 短期待辦（實作順序建議）：
-  - 初始化 Go 模組與資料夾骨架（不動 TUI）。
-  - `config.Load`：預設值＋YAML 覆寫，table‑driven 測試。
-  - `storage`：JSONL `Save/List`，使用暫存目錄測試 I/O 失敗分支。
-  - `search`：定義 `Index` 介面，先提供 in‑memory stub 與測試（之後換 Bleve）。
-  - `agent`：`LLM.Chat` 介面與 mock 測試（不依賴網路）。
-  - `cmd`：`ora add/ask` 骨架，先接上 storage/search，LLM 之後接。
-  - 品質檢查：`go fmt`, `go vet`, `go test ./...`。
+  - `cmd`：實現最小 `ora add`（寫檔＋索引）與 `ora ask`（顯示檢索片段，暫不接 LLM）。
+  - 整合模組：串接 `storage`、`search`、`config` 至 CLI。
+  - 品質檢查：`go fmt`, `go vet`, `go test ./...` 全綠。
+  - 測試驗證：手動測試 `ora add` 與 `ora ask` 基本功能。
 
-- 風險與備註：
-  - 目前無 Golang 程式碼：遵循小步提交，自 M2 起逐步恢復功能。
-  - 僅使用本機資料與路徑，避免觸碰敏感檔案與外部網路。
+- 備註：
   - 模組保持鬆耦合，未來可替換檢索引擎或模型而不影響 CLI/TUI。
 
 ---
@@ -188,8 +183,7 @@ Bleve 索引結構（依本專案 Note 資料模型調整）：
 ## 進度同步（AI 專用）
 
 - 當前待辦（精簡）：
-  - search：提供 `OpenOrCreate` 與 in‑memory `Index`，確保 `search/search_test.go` 綠燈。
-  - agent：補 `NewClient`/`Options` 與非串流 `Chat`，用 mock 通過 `agent/client_test.go`。
-  - tui：補 `bubbletea/bubbles` 相依或以 build tag 排除測試期編譯。
-  - cmd：最小 `ora add/ask` 骨架串接 `storage/search`（暫不接 LLM）。
-  - 測試與品質：`go test ./...` 全綠；`go fmt`、`go vet` 無誤。
+  - cmd：實現 `ora add`（儲存筆記並更新索引）與 `ora ask`（檢索並顯示片段）。
+  - 整合：串接 `storage`、`search`、`config` 至 CLI 指令。
+  - 品質：確保 `go test ./...` 全綠、`go fmt`、`go vet` 無誤。
+  - 驗證：手動測試 CLI 功能，確認筆記新增與查詢正常。
