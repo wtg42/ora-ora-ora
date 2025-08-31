@@ -26,6 +26,19 @@
 
 ---
 
+## CLI 使用
+
+- 新增筆記：
+  - `go run . add "今天研究 Bleve 查詢語法" --tags dev,search`
+  - 會寫入 `data/notes/YYYY-MM-DD.jsonl`，並更新索引；輸出新增的 `Note.ID`。
+- 查詢片段（不呼叫 LLM）：
+  - `go run . ask "golang bleve" --topk 5 --tags dev`
+  - 會從儲存讀取所有筆記、重建索引後檢索並列出匹配的 `NoteID`。
+- 設定檔（可選）：
+  - `--config path/to/config.yaml`（未提供時使用內建預設）
+
+---
+
 ## 技術架構
 
 流程總覽（概念示意）：
