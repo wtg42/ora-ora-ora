@@ -4,8 +4,8 @@ package search
 // 若內部需要不同儲存結構，應由 storage 轉接層自行處理，避免型別分裂。
 
 import (
-	"github.com/wtg42/ora-ora-ora/model"
-	"strings"
+    "github.com/wtg42/ora-ora-ora/model"
+    "strings"
 )
 
 // Snippet 為查詢回傳的最小片段資訊。
@@ -41,11 +41,11 @@ func (i *inMemoryIndex) IndexNote(note model.Note) error {
 
 // Query searches notes by content and tags, limited by topK
 func (i *inMemoryIndex) Query(q string, topK int, tags []string) ([]Snippet, error) {
-	var results []Snippet
-	for id, note := range i.notes {
-		// Check tags: must have all specified tags
-		if len(tags) > 0 {
-			hasAllTags := true
+    var results []Snippet
+    for id, note := range i.notes {
+        // Check tags: must have all specified tags
+        if len(tags) > 0 {
+            hasAllTags := true
 			for _, tag := range tags {
 				found := false
 				for _, ntag := range note.Tags {
@@ -63,15 +63,26 @@ func (i *inMemoryIndex) Query(q string, topK int, tags []string) ([]Snippet, err
 				continue
 			}
 		}
-		// Check content: simple substring match (case insensitive)
-		if q != "" && !strings.Contains(strings.ToLower(note.Content), strings.ToLower(q)) {
-			continue
-		}
-		results = append(results, Snippet{
-			NoteID: id,
-			Score:  1.0, // dummy score
-		})
-	}
+        // Check content: split q by spaces and require all tokens to be present (case-insensitive AND)
+        if qTrim := strings.TrimSpace(q); qTrim != "" {
+            contentLower := strings.ToLower(note.Content)
+            tokens := strings.Fields(strings.ToLower(qTrim))
+            ok := true
+            for _, tok := range tokens {
+                if !strings.Contains(contentLower, tok) {
+                    ok = false
+                    break
+                }
+            }
+            if !ok {
+                continue
+            }
+        }
+        results = append(results, Snippet{
+            NoteID: id,
+            Score:  1.0, // dummy score
+        })
+    }
 	// Limit to topK
 	if len(results) > topK {
 		results = results[:topK]
