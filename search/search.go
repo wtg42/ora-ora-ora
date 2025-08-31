@@ -4,8 +4,8 @@ package search
 // 若內部需要不同儲存結構，應由 storage 轉接層自行處理，避免型別分裂。
 
 import (
-	"fmt"
 	"github.com/wtg42/ora-ora-ora/model"
+	"strings"
 )
 
 // Snippet 為查詢回傳的最小片段資訊。
@@ -25,12 +25,66 @@ type Index interface {
 	Close() error
 }
 
-// OpenOrCreate 依路徑建立或開啟索引。
-// 目前為使用者自行實作的骨架；此處僅保留簽名與說明，不變更你的行為。
+// inMemoryIndex implements Index for testing purposes
+type inMemoryIndex struct {
+	notes map[string]model.Note
+}
+
+// IndexNote adds a note to the in-memory index
+func (i *inMemoryIndex) IndexNote(note model.Note) error {
+	if i.notes == nil {
+		i.notes = make(map[string]model.Note)
+	}
+	i.notes[note.ID] = note
+	return nil
+}
+
+// Query searches notes by content and tags, limited by topK
+func (i *inMemoryIndex) Query(q string, topK int, tags []string) ([]Snippet, error) {
+	var results []Snippet
+	for id, note := range i.notes {
+		// Check tags: must have all specified tags
+		if len(tags) > 0 {
+			hasAllTags := true
+			for _, tag := range tags {
+				found := false
+				for _, ntag := range note.Tags {
+					if ntag == tag {
+						found = true
+						break
+					}
+				}
+				if !found {
+					hasAllTags = false
+					break
+				}
+			}
+			if !hasAllTags {
+				continue
+			}
+		}
+		// Check content: simple substring match (case insensitive)
+		if q != "" && !strings.Contains(strings.ToLower(note.Content), strings.ToLower(q)) {
+			continue
+		}
+		results = append(results, Snippet{
+			NoteID: id,
+			Score:  1.0, // dummy score
+		})
+	}
+	// Limit to topK
+	if len(results) > topK {
+		results = results[:topK]
+	}
+	return results, nil
+}
+
+// Close does nothing for in-memory index
+func (i *inMemoryIndex) Close() error {
+	return nil
+}
+
+// OpenOrCreate creates an in-memory index (ignores path for now)
 func OpenOrCreate(path string) (Index, error) {
-	if len(path) <= 0 {
-		fmt.Printf("%s", path)
-		return nil, nil
-	}	
-	return nil, nil
+	return &inMemoryIndex{}, nil
 }

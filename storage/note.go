@@ -8,9 +8,9 @@ import "time"
 // 任何跨模組邊界都應以轉接層或轉型，輸出/輸入 model.Note。
 // JSON 欄位命名採用 snake_case 以便與 JSONL 檔案一致。
 type Note struct {
-    ID        string    `json:"id"`
-    Content   string    `json:"content"`
-    Tags      []string  `json:"tags"`
-    CreatedAt time.Time `json:"created_at"`
-    UpdatedAt time.Time `json:"updated_at"`
+	ID        string    `json:"id"`
+	Content   string    `json:"content"`
+	Tags      []string  `json:"tags"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }

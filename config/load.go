@@ -1,9 +1,9 @@
 package config
 
 import (
-    "os"
+	"os"
 
-    "github.com/goccy/go-yaml"
+	"github.com/goccy/go-yaml"
 )
 
 // Load 讀取 YAML 設定檔並回傳合併後的設定。
@@ -36,27 +36,27 @@ import (
 //	cfg, err := config.Load("config.yaml")
 //	if err != nil { /* 處理錯誤 */ }
 func Load(path string) (*Config, error) {
-    // 空路徑：直接回傳預設
-    if len(path) == 0 {
-        conf := DefaultConfig()
-        return &conf, nil
-    }
+	// 空路徑：直接回傳預設
+	if len(path) == 0 {
+		conf := DefaultConfig()
+		return &conf, nil
+	}
 
-    data, err := os.ReadFile(path)
-    if err != nil {
-        // 檔案不存在：回傳預設（不視為錯誤）
-        if os.IsNotExist(err) {
-            conf := DefaultConfig()
-            return &conf, nil
-        }
-        // 其他讀檔錯誤：回傳錯誤
-        return nil, err
-    }
+	data, err := os.ReadFile(path)
+	if err != nil {
+		// 檔案不存在：回傳預設（不視為錯誤）
+		if os.IsNotExist(err) {
+			conf := DefaultConfig()
+			return &conf, nil
+		}
+		// 其他讀檔錯誤：回傳錯誤
+		return nil, err
+	}
 
-    // 以預設值為基底，YAML 覆寫其上
-    merged := DefaultConfig()
-    if err := yaml.Unmarshal(data, &merged); err != nil {
-        return nil, err
-    }
-    return &merged, nil
+	// 以預設值為基底，YAML 覆寫其上
+	merged := DefaultConfig()
+	if err := yaml.Unmarshal(data, &merged); err != nil {
+		return nil, err
+	}
+	return &merged, nil
 }

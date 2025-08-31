@@ -22,7 +22,8 @@ type TUI struct {
 
 // Config 為整體設定結構，符合 README/AGENTS 合約。
 // 註：本專案採用 `github.com/goccy/go-yaml` 解析 YAML；
-//     Load 會以 DefaultConfig 為基底並以 YAML 覆寫既有欄位。
+//
+//	Load 會以 DefaultConfig 為基底並以 YAML 覆寫既有欄位。
 type Config struct {
 	OllamaHost string `yaml:"ollamaHost"`
 	Model      string `yaml:"model"`

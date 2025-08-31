@@ -57,7 +57,7 @@
   - 就算暫時沒測試檔，也建議先跑一次確認環境 OK
 
 ## 程式碼風格與命名
-- 格式：`go fmt`；縮排用 Tab（視覺 2 空格）
+- 格式：`go fmt`，縮排用 Tab
 - 套件命名：短、小寫、無底線（如 `tui`, `core`, `agent`）
 - 檔案命名：小寫，必要時可底線（如 `add_note.go`）
 - 介面/識別：公開 UpperCamelCase，私有 lowerCamelCase
