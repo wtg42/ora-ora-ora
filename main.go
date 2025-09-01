@@ -7,12 +7,8 @@ import (
 )
 
 func main() {
-    oraCmd := cmd.NewOraCmd()
-    oraCmd.RootCmd.AddCommand(oraCmd.StartTui())
-    oraCmd.RootCmd.AddCommand(oraCmd.Add())
-    oraCmd.RootCmd.AddCommand(oraCmd.Ask())
-
-	if _, err := oraCmd.RootCmd.ExecuteC(); err != nil {
+	root := cmd.NewOraCmdRoot()
+	if _, err := root.ExecuteC(); err != nil {
 		os.Exit(1)
 	}
 }

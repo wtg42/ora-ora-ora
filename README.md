@@ -30,12 +30,89 @@
 
 - 新增筆記：
   - `go run . add "今天研究 Bleve 查詢語法" --tags dev,search`
-  - 會寫入 `data/notes/YYYY-MM-DD.jsonl`，並更新索引；輸出新增的 `Note.ID`。
+  - 會寫入 `data/notes/YYYY-MM-DD.jsonl`，並更新索引；輸出格式：`ID: <uuid>`。
 - 查詢片段（不呼叫 LLM）：
   - `go run . ask "golang bleve" --topk 5 --tags dev`
-  - 會從儲存讀取所有筆記、重建索引後檢索並列出匹配的 `NoteID`。
+  - 會從儲存讀取所有筆記、重建索引後檢索並逐行列出匹配的 `NoteID`。
+  - 範例輸出：
+    ```
+    a1f3d2c4-...-abcd
+    9b2e7a10-...-ef01
+    ```
 - 設定檔（可選）：
   - `--config path/to/config.yaml`（未提供時使用內建預設）
+- 進階旗標（測試/進階用）：
+  - `--notes-dir /path/to/dir` 覆寫筆記資料夾（僅 CLI 測試或特殊佈署使用）。
+
+### M4：LLM 串接（非串流）
+
+- 功能行為：
+  - `ask` 先以 `search.Index` 檢索 Top‑K 片段，合併為 `context`，以模板渲染 `system/user`，最後呼叫 Ollama `/api/chat`（非串流）並輸出回覆。
+  - 指定 `--no-llm` 時，僅輸出檢索到的 `NoteID` 清單（維持 M3 行為）。
+
+- 使用範例：
+  - `go run . ask "如何使用 bleve？" --topk 5 --model llama3 --template prompt/ask.zh-tw.yaml`
+  - 未指定 `--template` 時使用內建預設；讀檔失敗或格式不符時回退預設並打印警示。
+
+- 旗標一覽（ask）：
+  - `--topk int`：檢索片段數（預設 20）。
+  - `--tags string`：以逗號分隔之標籤過濾（AND 行為）。
+  - `--no-llm`：僅檢索不呼叫 LLM。
+  - `--template path`：指定 YAML 模板檔（例：`prompt/ask.zh-tw.yaml`）。
+  - `--model string`：覆寫模型名稱（預設取自設定檔 `model`）。
+  - `--ollama-host string`：覆寫 Ollama 位址（預設取自設定檔 `ollamaHost`）。
+  - 進階 LLM 參數（對應 agent.Options）：
+    - `--temp float`（temperature）
+    - `--top-p float`
+    - `--num-ctx int`
+    - `--num-predict int`
+    - `--keep-alive duration`（例如 `30s`、`5m`）
+
+- 環境變數與優先序：
+  - `OLLAMA_HOST` 可覆寫連線位址（例：`http://127.0.0.1:11434`）。
+  - 優先序：CLI 旗標 > 環境變數 > 設定檔（`config.yaml`）> 內建預設。
+  - 需先啟動 `ollama serve` 並確保模型可用（例：`ollama pull llama3`）。
+
+- 模板格式（YAML）：
+  - 鍵值：`system`, `user`（至少其一非空）。
+  - 變數：`{{question}}`, `{{context}}`。
+  - 範例（`prompt/ask.zh-tw.yaml`）：
+    ```yaml
+    system: |
+      你是嚴謹的技術助理，僅根據下方「相關筆記」作答。
+      - 請以繁體中文輸出，條列重點。
+      - 若找不到相關內容，請直接說明無法回答。
+    user: |
+      問題：{{question}}
+
+      相關筆記：
+      {{context}}
+
+      要求：
+      - 摘要相關內容並回覆
+      - 勿臆測、勿捏造
+    ```
+  - Fallback 規則：
+    - 檔案不存在：使用預設模板並打印 `template not found; using default`。
+    - YAML 非法或缺鍵：使用預設模板並打印 `template invalid or missing keys; using default`。
+
+- 輸出與錯誤處理：
+  - 成功：輸出 LLM 回覆文字（純文字，不含多餘標註）。
+  - Ollama 不可達/逾時：提示檢查服務、埠與模型（可用 `--ollama-host` 覆寫）；可加上 `--no-llm` 退回檢索模式。
+  - 檢索為空：明確提示找不到相關片段，建議放寬關鍵詞或移除標籤過濾。
+
+- 設定檔對應（config.yaml）：
+  - `ollamaHost`: `http://127.0.0.1:11434`
+  - `model`: `llama3`
+  - `data.notesDir`: `data/notes`、`data.indexDir`: `data/index`
+  - `tui.width`: `80`
+  - 未提供時採用內建預設；可參考 `config.example.yaml`。
+
+- 測試（TDD 重點）：
+  - agent：mock HTTP 驗證 `/api/chat` payload（system/user/messages、model、options）、正/誤回應解析與逾時處理。
+  - prompt：模板載入、非法模板 fallback 與警示訊息。
+  - config：YAML 覆寫預設、缺欄位容錯。
+  - search：Top‑K 與 tags 過濾、空結果行為；排名穩定性以最小保證撰寫。
 
 ---
 
@@ -142,6 +219,8 @@ Bleve 索引結構（依本專案 Note 資料模型調整）：
 ---
 
 ## 當前開發步驟（Roadmap / Status）
+
+本專案嚴格遵循測試驅動開發（TDD）方式進行，由 AI 負責修飾語意和調整。
 
 - 里程碑進度：
   - ✅ M1 文件落地：專案指南與介面契約。
