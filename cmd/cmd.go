@@ -10,13 +10,15 @@ import (
 	"strings"
 	"time"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 
-	"github.com/wtg42/ora-ora-ora/config"
 	"github.com/wtg42/ora-ora-ora/cmd/core"
+	"github.com/wtg42/ora-ora-ora/config"
 	"github.com/wtg42/ora-ora-ora/model"
 	"github.com/wtg42/ora-ora-ora/search"
 	"github.com/wtg42/ora-ora-ora/storage"
+	"github.com/wtg42/ora-ora-ora/tui"
 )
 
 type OraCmd struct {
@@ -31,30 +33,60 @@ func NewOraCmd() *OraCmd {
 			Short: "個人 AI 快速筆記工具",
 			Long:  `將你的靈感、想法、計畫快速紀錄並由 AI 幫你回顧摘要跟重點。`,
 			Run: func(cmd *cobra.Command, args []string) {
-				// TODO: 啟動 TUI 介面
-				fmt.Println("Starting program...")
+				// By default, run start-tui
+				startTuiCmd := NewOraCmd().StartTui()
+				startTuiCmd.Run(cmd, args)
 			},
 		},
 	}
 }
 
 // StartTui creates and returns a Cobra command that starts the TUI interface.
-// This allows the caller to add it to the RootCmd using AddCommand().
 func (o *OraCmd) StartTui() *cobra.Command {
-	return &cobra.Command{
+	var cfgPath string
+	cmd := &cobra.Command{
 		Use:   "start-tui",
 		Short: "啟動 TUI 介面",
 		Long:  "啟動文字使用者介面 TUI",
-		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Println("Starting TUI...")
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cfg, err := config.Load(strings.TrimSpace(cfgPath))
+			if err != nil {
+				return fmt.Errorf("load config: %w", err)
+			}
+
+			st, err := storage.New(cfg.Data.NotesDir)
+			if err != nil {
+				return fmt.Errorf("init storage: %w", err)
+			}
+
+			idx, err := search.OpenOrCreate(cfg.Data.IndexDir)
+			if err != nil {
+				return fmt.Errorf("open index: %w", err)
+			}
+			defer func() { _ = idx.Close() }()
+
+			addNoteModel := tui.NewAddNoteModel(st, idx)
+			p := tea.NewProgram(addNoteModel)
+
+			if _, err := p.Run(); err != nil {
+				return fmt.Errorf("TUI error: %w", err)
+			}
+
+			// The FinalNote() method in the original test was for extracting data.
+			// The updated AddNoteModel in `add_note.go` doesn't have this method anymore.
+			// Instead, the saving logic is handled within the Update loop via a command.
+			// After the TUI exits, we can check the status.
+			
+
+			return nil
 		},
 	}
+	cmd.Flags().StringVar(&cfgPath, "config", "", "YAML config path (optional)")
+	return cmd
 }
 
 // Add returns the minimal "add" subcommand.
-// Usage:
-//
-//	ora-ora-ora add "your note content" --tags dev,test --config path/to/config.yaml
+// ... (rest of the file is the same)
 func (o *OraCmd) Add() *cobra.Command {
 	var (
 		cfgPath string

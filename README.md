@@ -227,7 +227,7 @@ Bleve 索引結構（依本專案 Note 資料模型調整）：
   - ✅ M2 介面骨架：建立 `storage/`, `search/`, `agent/`, `config/` 最小可用實作。
   - M3 指令最小版：`ora add` 寫檔＋索引、`ora ask` 顯示檢索片段（下一步）。
   - M4 LLM 串接：非串流回覆、模板 `prompt/ask.zh-tw.yaml` 參數化（規劃中）。
-  - M5 TUI 整合：AddNote 與查詢頁（規劃中）。
+  - M5 TUI 整合：AddNote 畫面已完成，查詢頁（下一步）。
 
 - 短期待辦（實作順序建議）：
   - `cmd`：實現最小 `ora add`（寫檔＋索引）與 `ora ask`（顯示檢索片段，暫不接 LLM）。
@@ -261,8 +261,9 @@ Bleve 索引結構（依本專案 Note 資料模型調整）：
 
 ## 進度同步（AI 專用）
 
-- 當前待辦（精簡）：
-  - cmd：實現 `ora add`（儲存筆記並更新索引）與 `ora ask`（檢索並顯示片段）。
-  - 整合：串接 `storage`、`search`、`config` 至 CLI 指令。
-  - 品質：確保 `go test ./...` 全綠、`go fmt`、`go vet` 無誤。
-  - 驗證：手動測試 CLI 功能，確認筆記新增與查詢正常。
+- 當前狀態（精簡）：
+  - TUI：`AddNote` 畫面已完成，包含樣式美化、排版修正、操作說明與輸入驗證，並已和後端 `storage`、`search` 模組串接。
+  - 品質：`go test ./...` 全綠。
+
+- 下一步：
+  - TUI：開發查詢頁面，整合 `ask` 功能。
