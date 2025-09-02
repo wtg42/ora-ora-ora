@@ -1,15 +1,15 @@
 package cmd
 
 import (
-    "os"
-    "path/filepath"
-    "strings"
-    "testing"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
 )
 
 func TestDiag_Basic(t *testing.T) {
-    tmp := t.TempDir()
-    notesDir := filepath.Join(tmp, "notes")
+	tmp := t.TempDir()
+	notesDir := filepath.Join(tmp, "notes")
 	if err := os.MkdirAll(notesDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -18,11 +18,11 @@ func TestDiag_Basic(t *testing.T) {
 		t.Fatal(err)
 	}
 
-    out, err := runCmd(t, "--notes-dir", notesDir, "diag", "--template", tpl)
+	out, err := runCmd(t, "--notes-dir", notesDir, "diag", "--template", tpl)
 	if err != nil {
 		t.Fatalf("diag returned error: %v (%s)", err, out)
 	}
-    // 在受限環境下，Ollama 預設不可連線，接受 unreachable 訊息
+	// 在受限環境下，Ollama 預設不可連線，接受 unreachable 訊息
 	if !strings.Contains(out, "NotesDir: writable") {
 		t.Fatalf("expected notes writable, got: %s", out)
 	}

@@ -46,8 +46,8 @@ func TestAddAndAsk_MinimalFlow(t *testing.T) {
 	}
 
 	// ask should list matching NoteIDs; ensure we get at least 1 line
-    // 放寬條件：移除標籤過濾，避免檢索器行為差異導致 0 結果
-    out, err = runCmd(t, "--notes-dir", notesDir, "ask", "bleve", "--topk", "5", "--no-llm")
+	// 放寬條件：移除標籤過濾，避免檢索器行為差異導致 0 結果
+	out, err = runCmd(t, "--notes-dir", notesDir, "ask", "bleve", "--topk", "5", "--no-llm")
 	if err != nil {
 		t.Fatalf("ask error: %v, out=%s", err, out)
 	}
@@ -59,10 +59,10 @@ func TestAddAndAsk_MinimalFlow(t *testing.T) {
 			lines++
 		}
 	}
-    if lines == 0 {
-        // 在受限沙箱下，若檢索為空，接受友善提示
-        if !strings.Contains(out, "找不到相關片段") {
-            t.Fatalf("expected some IDs or empty-result message, got=%q", out)
-        }
-    }
+	if lines == 0 {
+		// 在受限沙箱下，若檢索為空，接受友善提示
+		if !strings.Contains(out, "找不到相關片段") {
+			t.Fatalf("expected some IDs or empty-result message, got=%q", out)
+		}
+	}
 }

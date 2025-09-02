@@ -18,7 +18,6 @@ func TestAddNote_InitialState(t *testing.T) {
 	assert.True(t, m.ContentInput.Focused())
 }
 
-
 // TestAddNote_Update 驗證 TUI 的狀態轉換邏輯。
 func TestAddNote_Update(t *testing.T) {
 	// Helper to create a model with pre-filled text
