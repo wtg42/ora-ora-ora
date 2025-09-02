@@ -62,10 +62,11 @@ var keys = keyMap{
 
 // Styles
 var (
-	titleStyle     = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("205"))
-	promptStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("79"))
-	cursorStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
-	containerStyle = lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).Padding(1)
+	titleStyle  = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("205"))
+	promptStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("79"))
+	cursorStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
+	// 與 chat 頁共用 Dock 外觀，Add 頁的輸入群組固定在底部。
+	containerStyle = DockStyle.Copy().Padding(1)
 )
 
 // AddNoteModel is a bubbletea model for adding a new note.
@@ -79,6 +80,7 @@ type AddNoteModel struct {
 	help         help.Model
 	keys         keyMap
 	width        int
+	height       int
 }
 
 // NewAddNoteModel initializes a new model for adding a note.
@@ -119,7 +121,7 @@ func (m AddNoteModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		m.width = msg.Width
+		m.width, m.height = msg.Width, msg.Height
 		m.help.Width = msg.Width
 		inputWidth := m.width - containerStyle.GetHorizontalFrameSize()
 		m.ContentInput.Width = inputWidth
@@ -187,17 +189,25 @@ func (m AddNoteModel) View() string {
 	title := titleStyle.Render("New Note")
 	helpView := m.help.View(m.keys)
 
-	content := lipgloss.JoinVertical(
+	// 底部 Dock：固定放置輸入元件與狀態
+	dockInner := lipgloss.JoinVertical(
 		lipgloss.Top,
 		title,
 		m.ContentInput.View(),
 		m.TagsInput.View(),
 		m.Status,
 	)
+	bottom := containerStyle.Width(m.width).Render(dockInner)
 
-	container := containerStyle.Width(m.width - 2).Render(content)
+	// 依視窗高度將 Dock 錨定到底部（help 佔用最後幾行）
+	helpH := lipgloss.Height(helpView)
+	availH := m.height - helpH
+	if availH < lipgloss.Height(bottom) {
+		availH = lipgloss.Height(bottom)
+	}
+	placed := lipgloss.Place(m.width, availH, lipgloss.Left, lipgloss.Bottom, bottom)
 
-	return lipgloss.JoinVertical(lipgloss.Bottom, container, helpView)
+	return lipgloss.JoinVertical(lipgloss.Top, placed, helpView)
 }
 
 // FinalNote extracts the note data from the model.
