@@ -47,7 +47,8 @@
 ## 開發、建置與測試
 - 本地執行
   - `go run .`            啟動 CLI
-  - `go run . start-tui`  啟動 TUI
+  - `go run . start-tui`  啟動 TUI（預設頁 `add`）
+  - `go run . start-tui --page chat` 啟動對話頁（輸入固定底部、歷史在上方可滾動）
 - 編譯
   - `go build -o ./bin/ora-ora-ora .`
 - 格式/檢查
@@ -247,3 +248,26 @@ func Load(path string) (Config, error)
 - M3 指令最小版：`ora add` 寫檔＋索引、`ora ask` 只顯示檢索片段（暫不呼叫 LLM）
 - M4 LLM 串接：非串流回覆＋`--template/--model` 旗標
 - M5 TUI 整合：AddNote 寫檔與提示結果；之後再加查詢頁
+
+### M5 擴充：TUI 對話頁布局（設計藍圖）
+
+- 目標：
+  - 將對話輸入欄固定在終端底部，歷史對話與回應置於上方可滾動區域。
+  - 使用不同色彩與邊框樣式區分「使用者訊息」與「AI 回覆」，提升可讀性與掃描效率。
+- 介面契約（TUI 層新增，不影響後端模組）：
+  - `tui/chat` model：
+    - 狀態：`messages []Message`, `viewportOffset int`, `input string`。
+    - 行為：`Send(content string)`, `Scroll(delta int)`, `Resize(width,height int)`。
+    - 呈現：`view()` 以兩區塊組成：`historyViewport`（上）＋`inputBar`（下，固定高度）。
+  - Message：`role: user|assistant|system`, `content string`, `ts time.Time`。
+- 互動與鍵位：
+  - `Enter` 送出（`Shift+Enter` 換行）；`Esc` 清空或返回上一層；`PgUp/PgDn`、`↑/↓` 滾動歷史。
+- 視覺樣式（以 `lipgloss` 集中管理）：
+  - user：冷色系邊框（藍），右對齊；assistant：暖色系邊框（紫/綠），左對齊；system：灰色細邊框。
+  - 一致的 `padding/margin/radius` 與弱化的時間戳；保留主題化擴充空間。
+- 共用元件：
+  - `DockStyle`：底部輸入區的通用樣式（圓角邊框＋內距），`chat` 與 `add` 頁共用以保持一致性。
+- 技術與風險：
+  - 預設使用 alternate screen（`tea.WithAltScreen`），可由 `--no-alt` 關閉以利除錯或兼容性。
+  - 視窗大小變更需重算 viewport 高度，避免輸入欄漂移；訊息多時注意效能（僅渲染可視範圍）。
+  - 回滾策略：若 UI 影響互動效率，保留現行 AddNote 單頁為預設入口；對話頁以子指令或旗標切換。

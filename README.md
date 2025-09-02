@@ -44,6 +44,35 @@
 - 進階旗標（測試/進階用）：
   - `--notes-dir /path/to/dir` 覆寫筆記資料夾（僅 CLI 測試或特殊佈署使用）。
 
+### 啟動 TUI
+
+- `go run . start-tui` 啟動 TUI。預設使用 alternate screen（備用 buffer），退出後終端畫面會自動恢復。
+- 若終端不支援或需要除錯，可加入 `--no-alt` 停用 alternate screen：
+  - `go run . start-tui --no-alt`
+ - 切換頁面：
+   - `go run . start-tui --page chat` 啟動對話頁（輸入固定底部、歷史在上方可滾動）。
+   - `--page add` 為預設頁（維持現有新增筆記流程）。
+
+### TUI 對話頁布局（規劃）
+
+- 目標：提供沉浸式對話體驗，輸入欄固定於底部，歷史訊息於上方可滾動，並以顏色與邊框樣式加以區分，參考常見的 chat UI。
+- 版面配置：
+  - 底部輸入：單行/多行自動換行輸入框固定貼齊底部（使用 Bubble Tea layout 與 `lipgloss` 邊框）。
+  - 上方歷史：訊息流占據輸入框以上的全部高度，可上下滾動；最新訊息顯示在最下方一列之上。
+  - 邊界處理：視窗縮放時即時重算可視高度，保持輸入欄高度與位置穩定。
+- 共用策略：`DockStyle` 作為底部輸入區通用樣式，`chat` 與 `add` 皆沿用，維持一致外觀（圓角邊框＋適度內距）。
+- 視覺語意：
+  - 使用者訊息：以冷色系邊框（例：藍），靠右排列；系統/AI 回覆：以暖色系邊框（例：紫/綠），靠左排列。
+  - 內容區塊保持一致的內距與圓角，避免雜訊；時間戳記與標籤採弱化色。
+- 互動行為：
+  - Enter 送出（Shift+Enter 換行）；Esc 清空或回上層。
+  - 送出後將焦點留在輸入框；歷史區自動滾至最新訊息並保留滾動位置記憶。
+- 技術要點：
+  - 採用 alternate screen（預設開啟，可用 `--no-alt` 關閉），避免污染終端歷史。
+  - 以 Bubble Tea 的 model/update/view 管理狀態；訊息流維持不可變 slice，滾動以 viewport 或自製 offset 控制。
+  - 色彩與邊框透過 `lipgloss` 統一樣式表，集中定義方便主題化。
+
+
 ### M4：LLM 串接（非串流）
 
 - 功能行為：
@@ -239,8 +268,13 @@ Bleve 索引結構（依本專案 Note 資料模型調整）：
 ## 進度同步（AI 專用）
 
 - 當前狀態（精簡）：
-  - TUI：`AddNote` 畫面已完成，包含樣式美化、排版修正、操作說明與輸入驗證，並已和後端 `storage`、`search` 模組串接。
-  - 品質：`go test ./...` 全綠。
+  - TUI：新增聊天式 `AddWizard`（系統先提問→使用者回答→解析出「內容/標籤」並顯示彙整；暫不儲存）。
+  - TUI：新增 `Chat` 頁；輸入 Dock 固定底部、歷史在上方可滾動，user/assistant 以不同色框區分。
+  - 樣式/行為：抽出共用 `DockStyle`；修正 viewport 滾動與高度計算；支援 `--page add|chat`、`--no-alt`。
+  - 品質：`go fmt`/`go vet`/`go test ./...`/`go build` 皆通過。
 
-- 下一步：
-  - TUI：開發查詢頁面，整合 `ask` 功能。
+- 下一步（待辦）：
+  - AddWizard：加入確認與儲存流程（OK/Cancel）→ `storage.Save` + `index.IndexNote`，附錯誤提示。
+  - AddWizard：支援多行輸入（Shift+Enter）與更完整標籤解析；補 table‑driven 測試。
+  - Chat：整合 `ask`/LLM 回覆（可沿用 `--no-llm` 作為關閉選項）。
+  - 文件：補充鍵位與操作說明、附示意圖（可選）。
