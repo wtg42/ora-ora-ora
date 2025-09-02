@@ -218,33 +218,10 @@ Bleve 索引結構（依本專案 Note 資料模型調整）：
 
 ---
 
-## 當前開發步驟（Roadmap / Status）
-
-本專案嚴格遵循測試驅動開發（TDD）方式進行，由 AI 負責修飾語意和調整。
-
-- 里程碑進度：
-  - ✅ M1 文件落地：專案指南與介面契約。
-  - ✅ M2 介面骨架：建立 `storage/`, `search/`, `agent/`, `config/` 最小可用實作。
-  - M3 指令最小版：`ora add` 寫檔＋索引、`ora ask` 顯示檢索片段（下一步）。
-  - M4 LLM 串接：非串流回覆、模板 `prompt/ask.zh-tw.yaml` 參數化（規劃中）。
-  - M5 TUI 整合：AddNote 畫面已完成，查詢頁（下一步）。
-
-- 短期待辦（實作順序建議）：
-  - `cmd`：實現最小 `ora add`（寫檔＋索引）與 `ora ask`（顯示檢索片段，暫不接 LLM）。
-  - 整合模組：串接 `storage`、`search`、`config` 至 CLI。
-  - 品質檢查：`go fmt`, `go vet`, `go test ./...` 全綠。
-  - 測試驗證：手動測試 `ora add` 與 `ora ask` 基本功能。
-
-- 備註：
-  - 模組保持鬆耦合，未來可替換檢索引擎或模型而不影響 CLI/TUI。
-
----
-
 ## 資料與隱私
 
 - 筆記：儲存於 `data/notes/*.jsonl`（一行一筆；`id, content, tags, created_at`）。
 - 索引：存於 `data/index/`（導入 Bleve 後）。
-- 所有資料與推論皆於本機完成，無雲端上傳。
 
 ---
 
