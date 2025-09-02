@@ -43,30 +43,39 @@ func NewOraCmd() *OraCmd {
 
 // StartTui creates and returns a Cobra command that starts the TUI interface.
 func (o *OraCmd) StartTui() *cobra.Command {
-	var cfgPath string
+	var (
+		cfgPath string
+		noAlt   bool   // 若為 true，停用 alternate screen（備用 buffer）
+		page    string // add | chat（預設 add，保守不破壞既有流程）
+	)
 	cmd := &cobra.Command{
 		Use:   "start-tui",
 		Short: "啟動 TUI 介面",
 		Long:  "啟動文字使用者介面 TUI",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, err := config.Load(strings.TrimSpace(cfgPath))
-			if err != nil {
-				return fmt.Errorf("load config: %w", err)
+			// 目前聊天式 add/chat 頁啟動不依賴設定檔內容；保留旗標但延後讀取到需要時。
+
+			// 注意：聊天式 add（預設）與 chat 頁目前不需即時初始化 storage/index。
+			// 後續若導入即時儲存，再將初始化移至對應分支。
+
+			// 頁面選擇：預設 add（聊天式精煉與彙整，不立即儲存）；
+			// chat 可切換到一般對話頁（輸入固定底部，歷史置上滾動）
+			var model tea.Model
+			switch strings.ToLower(strings.TrimSpace(page)) {
+			case "chat":
+				chat := tui.NewChatModel()
+				model = chat
+			default:
+				model = tui.NewAddWizardModel()
 			}
 
-			st, err := storage.New(cfg.Data.NotesDir)
-			if err != nil {
-				return fmt.Errorf("init storage: %w", err)
+			// 預設使用 alternate screen，避免污染原終端內容；可用 --no-alt 關閉
+			var p *tea.Program
+			if noAlt {
+				p = tea.NewProgram(model)
+			} else {
+				p = tea.NewProgram(model, tea.WithAltScreen())
 			}
-
-			idx, err := search.OpenOrCreate(cfg.Data.IndexDir)
-			if err != nil {
-				return fmt.Errorf("open index: %w", err)
-			}
-			defer func() { _ = idx.Close() }()
-
-			addNoteModel := tui.NewAddNoteModel(st, idx)
-			p := tea.NewProgram(addNoteModel)
 
 			if _, err := p.Run(); err != nil {
 				return fmt.Errorf("TUI error: %w", err)
@@ -76,12 +85,13 @@ func (o *OraCmd) StartTui() *cobra.Command {
 			// The updated AddNoteModel in `add_note.go` doesn't have this method anymore.
 			// Instead, the saving logic is handled within the Update loop via a command.
 			// After the TUI exits, we can check the status.
-			
 
 			return nil
 		},
 	}
 	cmd.Flags().StringVar(&cfgPath, "config", "", "YAML config path (optional)")
+	cmd.Flags().BoolVar(&noAlt, "no-alt", false, "disable alternate screen (debug/unsupported terminals)")
+	cmd.Flags().StringVar(&page, "page", "add", "TUI page: add | chat")
 	return cmd
 }
 
@@ -174,17 +184,23 @@ func (o *OraCmd) Ask() *cobra.Command {
 				return fmt.Errorf("load config: %w", err)
 			}
 			// 委派給 core.AskCmd，並在此重建索引以符合整合測試期望
-            provider := func() (search.Index, error) {
-                // 優先使用 root flag 的 --notes-dir 覆蓋 cfg
-                if v, err := cmd.Root().Flags().GetString("notes-dir"); err == nil && v != "" {
-                    cfg.Data.NotesDir = v
-                }
-                st, err := storage.New(cfg.Data.NotesDir)
-                if err != nil { return nil, err }
-                notes, err := st.List()
-                if err != nil { return nil, err }
-                idx, err := search.OpenOrCreate("")
-                if err != nil { return nil, err }
+			provider := func() (search.Index, error) {
+				// 優先使用 root flag 的 --notes-dir 覆蓋 cfg
+				if v, err := cmd.Root().Flags().GetString("notes-dir"); err == nil && v != "" {
+					cfg.Data.NotesDir = v
+				}
+				st, err := storage.New(cfg.Data.NotesDir)
+				if err != nil {
+					return nil, err
+				}
+				notes, err := st.List()
+				if err != nil {
+					return nil, err
+				}
+				idx, err := search.OpenOrCreate("")
+				if err != nil {
+					return nil, err
+				}
 				for _, n := range notes {
 					if err := idx.IndexNote(n); err != nil {
 						_ = idx.Close()
@@ -194,19 +210,29 @@ func (o *OraCmd) Ask() *cobra.Command {
 				return idx, nil
 			}
 			argv := []string{}
-			if topK > 0 { argv = append(argv, "--topk", fmt.Sprintf("%d", topK)) }
-			if tagsStr != "" { argv = append(argv, "--tags", tagsStr) }
-			if noLLM { argv = append(argv, "--no-llm") }
-			if model != "" { argv = append(argv, "--model", model) }
-			if tplPath != "" { argv = append(argv, "--template", tplPath) }
+			if topK > 0 {
+				argv = append(argv, "--topk", fmt.Sprintf("%d", topK))
+			}
+			if tagsStr != "" {
+				argv = append(argv, "--tags", tagsStr)
+			}
+			if noLLM {
+				argv = append(argv, "--no-llm")
+			}
+			if model != "" {
+				argv = append(argv, "--model", model)
+			}
+			if tplPath != "" {
+				argv = append(argv, "--template", tplPath)
+			}
 			// 目前 host 覆蓋由環境變數與 core 內部旗標處理，這裡不再重覆
 			argv = append(argv, args...)
-            return core.AskCmd(argv, cfg,
-                core.WithIndexProvider(provider),
-                core.WithWriters(cmd.OutOrStdout(), cmd.ErrOrStderr()),
-            )
-        },
-    }
+			return core.AskCmd(argv, cfg,
+				core.WithIndexProvider(provider),
+				core.WithWriters(cmd.OutOrStdout(), cmd.ErrOrStderr()),
+			)
+		},
+	}
 
 	cmd.Flags().StringVar(&cfgPath, "config", "", "YAML config path (optional)")
 	cmd.Flags().StringVar(&tagsStr, "tags", "", "comma-separated tags (e.g., dev,test)")
