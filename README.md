@@ -267,14 +267,9 @@ Bleve 索引結構（依本專案 Note 資料模型調整）：
 
 ## 進度同步（AI 專用）
 
-- 當前狀態（精簡）：
-  - TUI：新增聊天式 `AddWizard`（系統先提問→使用者回答→解析出「內容/標籤」並顯示彙整；暫不儲存）。
-  - TUI：新增 `Chat` 頁；輸入 Dock 固定底部、歷史在上方可滾動，user/assistant 以不同色框區分。
-  - 樣式/行為：抽出共用 `DockStyle`；修正 viewport 滾動與高度計算；支援 `--page add|chat`、`--no-alt`。
-  - 品質：`go fmt`/`go vet`/`go test ./...`/`go build` 皆通過。
-
-- 下一步（待辦）：
-  - AddWizard：加入確認與儲存流程（OK/Cancel）→ `storage.Save` + `index.IndexNote`，附錯誤提示。
-  - AddWizard：支援多行輸入（Shift+Enter）與更完整標籤解析；補 table‑driven 測試。
-  - Chat：整合 `ask`/LLM 回覆（可沿用 `--no-llm` 作為關閉選項）。
-  - 文件：補充鍵位與操作說明、附示意圖（可選）。
+- 下一步（待辦，精簡）：
+  - Chat：整合 ask/LLM 回覆（保留 `--no-llm`），加 mock 測試。
+  - 文件：更新 README 的 TUI 操作與鍵位（Enter/Alt+Enter/Esc/PgUp/PgDn）與底部 help 列，必要時附示意圖。
+  - AddWizard：擴充標籤解析案例與邊界測試，文件化正規化/排序規則。
+  - 效能：評估儲存/索引延遲初始化以降低啟動成本（僅在確認儲存時初始化）。
+  - TUI UX：儲存成功後是否暫留提示再退出、錯誤後提示可重試的文案。
