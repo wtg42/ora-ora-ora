@@ -66,7 +66,21 @@ func (o *OraCmd) StartTui() *cobra.Command {
 				chat := tui.NewChatModel()
 				model = chat
 			default:
-				model = tui.NewAddWizardModel()
+				// 構建具備儲存/索引能力的 AddWizard
+				cfg, err := config.Load(strings.TrimSpace(cfgPath))
+				if err != nil {
+					return fmt.Errorf("load config: %w", err)
+				}
+				st, err := storage.New(cfg.Data.NotesDir)
+				if err != nil {
+					return fmt.Errorf("init storage: %w", err)
+				}
+				idx, err := search.OpenOrCreate(cfg.Data.IndexDir)
+				if err != nil {
+					return fmt.Errorf("open index: %w", err)
+				}
+				defer func() { _ = idx.Close() }()
+				model = tui.NewAddWizardModelWithDeps(st, idx)
 			}
 
 			// 預設使用 alternate screen，避免污染原終端內容；可用 --no-alt 關閉
