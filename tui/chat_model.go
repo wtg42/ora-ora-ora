@@ -21,29 +21,29 @@ type Message struct {
 
 // chatKeyMap 定義聊天頁的鍵位。
 type chatKeyMap struct {
-    Send       key.Binding
-    Quit       key.Binding
-    ScrollUp   key.Binding
-    ScrollDown key.Binding
-    Newline    key.Binding // for help display only (Alt+Enter)
+	Send       key.Binding
+	Quit       key.Binding
+	ScrollUp   key.Binding
+	ScrollDown key.Binding
+	Newline    key.Binding // for help display only (Alt+Enter)
 }
 
 // ShortHelp implements help.KeyMap for compact help view.
 func (k chatKeyMap) ShortHelp() []key.Binding {
-    return []key.Binding{k.Send, k.Newline, k.Quit, k.ScrollUp, k.ScrollDown}
+	return []key.Binding{k.Send, k.Newline, k.Quit, k.ScrollUp, k.ScrollDown}
 }
 
 // FullHelp implements help.KeyMap for expanded help view.
 func (k chatKeyMap) FullHelp() [][]key.Binding {
-    return [][]key.Binding{{k.Send, k.Newline, k.Quit, k.ScrollUp, k.ScrollDown}}
+	return [][]key.Binding{{k.Send, k.Newline, k.Quit, k.ScrollUp, k.ScrollDown}}
 }
 
 var chatKeys = chatKeyMap{
-    Send:       key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "send")),
-    Quit:       key.NewBinding(key.WithKeys("esc", "ctrl+c"), key.WithHelp("esc", "quit")),
-    ScrollUp:   key.NewBinding(key.WithKeys("pgup", "up"), key.WithHelp("pgup", "scroll up")),
-    ScrollDown: key.NewBinding(key.WithKeys("pgdn", "down"), key.WithHelp("pgdn", "scroll down")),
-    Newline:    key.NewBinding(key.WithKeys("alt+enter"), key.WithHelp("alt+enter", "newline")),
+	Send:       key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "send")),
+	Quit:       key.NewBinding(key.WithKeys("esc", "ctrl+c"), key.WithHelp("esc", "quit")),
+	ScrollUp:   key.NewBinding(key.WithKeys("pgup", "up"), key.WithHelp("pgup", "scroll up")),
+	ScrollDown: key.NewBinding(key.WithKeys("pgdn", "down"), key.WithHelp("pgdn", "scroll down")),
+	Newline:    key.NewBinding(key.WithKeys("alt+enter"), key.WithHelp("alt+enter", "newline")),
 }
 
 // 樣式：集中管理，之後可主題化。
@@ -154,8 +154,8 @@ func (m ChatModel) View() string {
 	top := m.history.View()
 	// 以 DockStyle 統一底部輸入區的外觀（與 add 頁共用）
 	bottom := DockStyle.Width(m.width).Render(m.input.View())
-    helpView := m.help.View(m.keys)
-    return lipgloss.JoinVertical(lipgloss.Top, chatContainer.Render(top), bottom, helpView)
+	helpView := m.help.View(m.keys)
+	return lipgloss.JoinVertical(lipgloss.Top, chatContainer.Render(top), bottom, helpView)
 }
 
 // appendUser 追加使用者訊息並刷新歷史內容（AI 回覆整合留待後續）。

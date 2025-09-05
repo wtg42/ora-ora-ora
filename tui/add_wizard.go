@@ -32,7 +32,7 @@ type AddWizardModel struct {
 	parsedContent  string
 	parsedTags     []string
 	confirmPending bool
-    help           help.Model
+	help           help.Model
 }
 
 // NewAddWizardModel 建立不注入儲存依賴的精簡精靈（僅彙整顯示）。
@@ -198,8 +198,8 @@ func (m AddWizardModel) View() string {
 	}
 	top := m.history.View()
 	bottom := DockStyle.Width(m.width).Render(m.input.View())
-    helpView := m.help.View(m.keys)
-    return lipgloss.JoinVertical(lipgloss.Top, top, bottom, helpView)
+	helpView := m.help.View(m.keys)
+	return lipgloss.JoinVertical(lipgloss.Top, top, bottom, helpView)
 }
 
 // --- internal helpers ---
