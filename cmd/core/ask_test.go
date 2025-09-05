@@ -52,5 +52,79 @@ func TestAsk_EnvOverridesHost(t *testing.T) {
 	}
 }
 
+// TestAsk_FlagCombinations tests various flag combinations for ask command.
+func TestAsk_FlagCombinations(t *testing.T) {
+	tests := []struct {
+		name     string
+		args     []string
+		wantErr  bool
+		checkOut func(t *testing.T, out string)
+	}{
+		{
+			name:    "default flags",
+			args:    []string{"test query"},
+			wantErr: false,
+			checkOut: func(t *testing.T, out string) {
+				// Just ensure no crash; output depends on retrieval
+			},
+		},
+		{
+			name:    "with topk",
+			args:    []string{"--topk", "5", "test query"},
+			wantErr: false,
+			checkOut: func(t *testing.T, out string) {
+				// Check that topk is parsed (but since no notes, output empty)
+			},
+		},
+		{
+			name:    "with tags",
+			args:    []string{"--tags", "dev,test", "test query"},
+			wantErr: false,
+			checkOut: func(t *testing.T, out string) {
+				// Tags should be parsed without error
+			},
+		},
+		{
+			name:    "with model",
+			args:    []string{"--model", "llama2", "test query"},
+			wantErr: false,
+			checkOut: func(t *testing.T, out string) {
+				// Model flag should be accepted
+			},
+		},
+		{
+			name:    "invalid topk",
+			args:    []string{"--topk", "invalid", "test query"},
+			wantErr: true,
+			checkOut: func(t *testing.T, out string) {
+				// Should error on invalid topk
+			},
+		},
+		{
+			name:    "multiple flags",
+			args:    []string{"--topk", "10", "--tags", "dev", "--model", "llama3", "test query"},
+			wantErr: false,
+			checkOut: func(t *testing.T, out string) {
+				// Combination should work
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := config.DefaultConfig()
+			var buf bytes.Buffer
+			err := AskCmd(tt.args, &cfg, WithWriters(&buf, &buf))
+			if (err != nil) != tt.wantErr {
+				t.Errorf("AskCmd() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !tt.wantErr {
+				tt.checkOut(t, buf.String())
+			}
+		})
+	}
+}
+
 // minimal helper to avoid importing io for Go <1.20 if constrained
 // no longer needed: we inject writers directly
