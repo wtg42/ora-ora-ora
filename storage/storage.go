@@ -18,8 +18,7 @@ type Storage interface {
 
 // NewJSONL 建立以 JSONL 檔案為後端的 Storage 實例。
 // baseDir 為資料根目錄（例如 data/notes）。
-// TODO: 由實作者完成 JSONL 儲存初始化邏輯（建立必要資料夾、參數檢查等）。
-func NewJSONL(baseDir string) Storage { // TODO: return concrete implementation
+func NewJSONL(baseDir string) Storage {
 	return &jsonlStorage{baseDir: baseDir}
 }
 

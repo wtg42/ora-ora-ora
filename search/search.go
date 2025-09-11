@@ -4,6 +4,13 @@ package search
 // 若內部需要不同儲存結構，應由 storage 轉接層自行處理，避免型別分裂。
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
+
+	"github.com/blevesearch/bleve/v2"
+	"github.com/blevesearch/bleve/v2/mapping"
+	"github.com/blevesearch/bleve/v2/search/query"
 	"github.com/wtg42/ora-ora-ora/model"
 	"strings"
 )
@@ -95,7 +102,137 @@ func (i *inMemoryIndex) Close() error {
 	return nil
 }
 
-// OpenOrCreate creates an in-memory index (ignores path for now)
+// bleveIndex implements Index using Bleve
+type bleveIndex struct {
+	index bleve.Index
+}
+
+// newBleveIndexMapping creates the mapping for Bleve index
+func newBleveIndexMapping() *mapping.IndexMappingImpl {
+	indexMapping := bleve.NewIndexMapping()
+
+	// Content field: full-text, participates in ranking
+	contentMapping := bleve.NewTextFieldMapping()
+	contentMapping.Store = true
+	contentMapping.Index = true
+	contentMapping.IncludeInAll = true
+
+	// Tags field: keyword, no tokenization, for filtering
+	tagsMapping := bleve.NewTextFieldMapping()
+	tagsMapping.Store = true
+	tagsMapping.Index = true
+	tagsMapping.IncludeInAll = false
+	tagsMapping.Analyzer = "keyword"
+
+	// CreatedAt field: sortable
+	createdAtMapping := bleve.NewDateTimeFieldMapping()
+	createdAtMapping.Store = true
+	createdAtMapping.Index = true
+	createdAtMapping.IncludeInAll = false
+
+	docMapping := bleve.NewDocumentMapping()
+	docMapping.AddFieldMappingsAt("content", contentMapping)
+	docMapping.AddFieldMappingsAt("tags", tagsMapping)
+	docMapping.AddFieldMappingsAt("created_at", createdAtMapping)
+
+	indexMapping.AddDocumentMapping("_default", docMapping)
+	indexMapping.TypeField = "type"
+	indexMapping.DefaultType = "_default"
+
+	return indexMapping
+}
+
+// IndexNote indexes a note using Bleve
+func (b *bleveIndex) IndexNote(note model.Note) error {
+	doc := map[string]interface{}{
+		"content":    note.Content,
+		"tags":       note.Tags, // Store as array for proper indexing
+		"created_at": note.CreatedAt,
+	}
+	return b.index.Index(note.ID, doc)
+}
+
+// Query searches using Bleve
+func (b *bleveIndex) Query(q string, topK int, tags []string) ([]Snippet, error) {
+	var queries []query.Query
+
+	// Content query
+	if qTrim := strings.TrimSpace(q); qTrim != "" {
+		contentQuery := bleve.NewMatchQuery(qTrim)
+		contentQuery.SetField("content")
+		queries = append(queries, contentQuery)
+	}
+
+	// Tags query: AND all specified tags
+	if len(tags) > 0 {
+		for _, tag := range tags {
+			tagQuery := bleve.NewTermQuery(tag)
+			tagQuery.SetField("tags")
+			queries = append(queries, tagQuery)
+		}
+	}
+
+	var searchQuery query.Query
+	if len(queries) == 0 {
+		searchQuery = bleve.NewMatchAllQuery()
+	} else if len(queries) == 1 {
+		searchQuery = queries[0]
+	} else {
+		searchQuery = bleve.NewConjunctionQuery(queries...)
+	}
+
+	searchRequest := bleve.NewSearchRequest(searchQuery)
+	searchRequest.Size = topK
+	searchRequest.SortBy([]string{"-_score", "created_at"}) // Default relevance, then by date
+
+	searchResult, err := b.index.Search(searchRequest)
+	if err != nil {
+		return nil, err
+	}
+
+	var results []Snippet
+	for _, hit := range searchResult.Hits {
+		results = append(results, Snippet{
+			NoteID: hit.ID,
+			Score:  hit.Score,
+		})
+	}
+
+	return results, nil
+}
+
+// Close closes the Bleve index
+func (b *bleveIndex) Close() error {
+	return b.index.Close()
+}
+
+// OpenOrCreate creates index based on path: if path is empty, use in-memory; otherwise use Bleve
 func OpenOrCreate(path string) (Index, error) {
-	return &inMemoryIndex{}, nil
+	if path == "" {
+		return &inMemoryIndex{}, nil
+	}
+
+	// Ensure directory exists
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return nil, fmt.Errorf("create index dir %s: %w", filepath.Dir(path), err)
+	}
+
+	var index bleve.Index
+	var err error
+	if _, err = os.Stat(path); os.IsNotExist(err) {
+		// Create new index
+		mapping := newBleveIndexMapping()
+		index, err = bleve.New(path, mapping)
+		if err != nil {
+			return nil, fmt.Errorf("create bleve index at %s: %w", path, err)
+		}
+	} else {
+		// Open existing index
+		index, err = bleve.Open(path)
+		if err != nil {
+			return nil, fmt.Errorf("open bleve index at %s: %w", path, err)
+		}
+	}
+
+	return &bleveIndex{index: index}, nil
 }

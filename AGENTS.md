@@ -1,273 +1,71 @@
-# 文件關聯說明
+# AGENTS.md（核心規範）
 
-這個專案是本機跑的個人速記 + 問答系統。你可以用 CLI 快速記筆記，再用自然語言問它，由本地 AI 回你重點。
-
-開始前請先看 README.md 的整體說明。
-
-# 指派行為：專案進度同步
-
-- 讀進度：「讀取專案進度」→ 我會在 README.md 找標題「進度同步（AI 專用）」的章節，只看這一段回報現況。沒這段就回報「尚未建立」。
-- 存進度：「存檔進度」→ 我會更新同名章節，只寫「目前未完成/待辦」的精簡摘要，不複製整份狀態。沒有這段就加在 README.md 最尾端再寫入。
-- 定位標題：固定用「進度同步（AI 專用）」當錨點，我會記住這個標題。
-- 邊界：只會讀寫 README.md 的這個章節，不動其他內容與任何敏感檔。若環境唯讀或沒權限，我會回報狀態並附手動操作指引。
-
-## 開發模式（嚴格 TDD + AI 藍圖）
-
-- 原則：嚴格執行先寫測試再實作（TDD）。任何功能變更先提交測試與最小藍圖。
-- AI 責任：高階藍圖（Roadmap/介面契約/資料流程）＋最小測試（table‑driven）。
-- 收斂：紅（測試失敗）→ 綠（通過）→ 重構（不改外部行為）。避免一次性大重構。
-
-### 角色分工（嚴格 TDD）
-- AI：唯一實作與設計驅動者。
-  - 規劃藍圖與介面邊界；提供/更新測試與測試資料；標註風險、替代方案與回滾策略。
-- 開發者：僅為 Reviewer/Gatekeeper。
-  - 審查測試與介面可行性與安全性；不直接撰寫功能碼。
-  - 在測試紅燈時回饋落差，協助 AI 調整測試或介面後再實作。
-
-### 工作流程（每次迭代）
-1) AI 提小步變更計畫＋測試檔案清單（含測試資料）。
-2) Reviewer 僅審查測試與計畫，確認覆蓋關鍵行為與風險；同意後進入實作。
-3) AI 依測試實作，讓紅→綠；改動維持最小、可回滾。
-4) 綠燈後可重構，但不得改外部行為；必要時補測試以鎖定行為。
-5) 品質檢查：`go fmt`, `go vet`, `go test ./... -cover`。
-6) 文件同步：更新 README/AGENTS/使用說明，保持與實作一致。
-7) 提交：Conventional Commits；PR 單一主題、可回滾；Reviewer 簽核後合併。
-
-## 專案結構與模組組織
-- 入口：`main.go`（初始化 Cobra/CLI）
-- 指令：`cmd/`（主指令 `cmd.go`、進階指令放 `cmd/core/`）
-- TUI：`tui/`（如 `add_note.go`, `search_result.go`，走 Bubble Tea 的 model/update/view）
-- 檢索與 AI：
-  - 全文檢索：`search/` 用 Bleve，索引放專案資料夾，無外部 DB
-  - AI 代理：`agent/` 負責 Ollama API（含 prompt 注入、結果解析）
-- 設定：
-  - `config/` 載入 YAML（有預設值，不自動讀 `.env`）
-  - 支援選項：模型名稱、索引路徑、TUI 參數…
-
-## 開發、建置與測試
-- 本地執行
-  - `go run .`            啟動 CLI
-  - `go run . start-tui`  啟動 TUI（預設頁 `add`）
-  - `go run . start-tui --page chat` 啟動對話頁（輸入固定底部、歷史在上方可滾動）
-- 編譯
-  - `go build -o ./bin/ora-ora-ora .`
-- 格式/檢查
-  - `go fmt ./...`
-  - `go vet ./...`
-  - 有裝 `goimports` 可順便整理 import
-- 測試
-  - `go test ./... -cover`
-  - 就算暫時沒測試檔，也建議先跑一次確認環境 OK
-
-## 程式碼風格與命名
-- 格式：`go fmt`，縮排用 Tab
-- 套件命名：短、小寫、無底線（如 `tui`, `core`, `agent`）
-- 檔案命名：小寫，必要時可底線（如 `add_note.go`）
-- 介面/識別：公開 UpperCamelCase，私有 lowerCamelCase
-- TUI：盡量不可變，`update` 回傳新 model
-- Agent：別把 Bleve 和 Ollama 綁死，保持可替換
-
-## 測試策略
-- 用標準 `testing`；測試檔放同資料夾（`xxx_test.go`）
-- 推薦範圍：
-  - 斷詞與搜尋結果過濾
-  - CLI 參數解析（Cobra）
-  - TUI 狀態轉換與輸入事件
-  - Agent 與 Ollama API（用 mock server）
-- 優先 table-driven，方便擴案例
-
-## Commit 與 PR
-- Commit 格式（Conventional Commits）
-  - `feat: 新增 Bleve 搜尋標籤過濾功能`
-  - `fix: 修正 TUI 搜尋結果換頁顯示錯誤`
-- PR：單一主題，說明目的、作法、影響；有 UI/TUI 變更就附 CLI 輸出或截圖
-- 合併前確認
-  - `go fmt ./...`
-  - `go vet ./...`
-  - `go test ./...`
-
-## 架構與維護建議
-- 執行流程
-  - `main.go → cmd.NewOraCmd() → (選 CLI 功能) → startTui() → TUI event loop`
-- AI 流程建議
-  - CLI/TUI 收輸入 → 關鍵詞斷詞 → Bleve 找相關文件 → 注入 Prompt → 呼叫 Ollama → 顯示回覆
-- Bleve 與設定
-  - 索引放 `data/index/`，可用 tags 與分群查
-  - 設定用 YAML；保留替換空間（模型/檢索策略）
-  - Agent/搜尋層解耦，隨時能換
-
-## 模組契約與資料模型（介面先行）
-以下是 MVP 的介面契約。先用文件落地，實作可分段完成，用 table-driven 測試覆蓋主要分支。
-
-### model（跨模組資料模型；唯一來源）
-所有模組對外都用 `model.Note`；內部若要不同結構，自行轉換，不外露。
-
-```go
-// 套件：github.com/wtg42/ora-ora-ora/model
-type Note struct {
-    ID        string    // UUIDv4
-    Content   string
-    Tags      []string
-    CreatedAt time.Time
-    UpdatedAt time.Time
-}
-```
-
-### storage（檔案儲存；建議 JSONL）
-對外契約用 `model.Note`；若內部序列化有差（例如欄位命名），請在內部轉換或做轉接層，不要洩漏到其他模組。
-
-```go
-// 對外契約（以 model.Note 為準）
-type Storage interface {
-    Save(note model.Note) error
-    List() ([]model.Note, error)
-}
-```
-
-儲存建議：`data/notes/YYYY-MM-DD.jsonl`（一行一筆）
-
-### search（Bleve 介面層；鬆耦合）
-Snippet 結構：
-
-```go
-type Snippet struct {
-    NoteID     string
-    Excerpt    string
-    Score      float64
-    TagMatches []string
-}
-```
-
-介面與生命週期：
-
-```go
-// 使用 model.Note 作為索引輸入的統一型別
-type Index interface {
-    IndexNote(note model.Note) error
-    Query(q string, topK int, tags []string) ([]Snippet, error)
-    Close() error
-}
-
-func OpenOrCreate(path string) (Index, error)
-```
-
-Mapping 建議：`content`（全文）、`tags`（keyword，不分詞）、`created_at`（sortable）
-
-### agent（Ollama HTTP 客戶端）
-Options 與介面：
-
-```go
-type Options struct {
-    Temperature float64
-    TopP        float64
-    NumCtx      int
-    NumPredict  int
-    KeepAlive   time.Duration
-}
-
-type LLM interface {
-    Chat(ctx context.Context, system, user string, opts Options) (string, error)
-}
-```
-
-先支援非串流；未來可加 `StreamChat`
-
-### config（YAML 載入）
-
-```go
-type Config struct {
-    OllamaHost string
-    Model      string
-    Data struct {
-        NotesDir string
-        IndexDir string
-    }
-    TUI struct {
-        Width int
-    }
-}
-
-func Load(path string) (Config, error)
-```
-
-有預設值、支援 YAML 覆寫；不自動讀 `.env`
-
-## 檢索與推論流程（ask）
-- 正規化查詢（trim 空白、大小寫）
-- Bleve Top‑K（預設 20，可 `--topk` 覆寫）
-- 載入模板 `prompt/ask.zh-tw.yaml`（找不到就用內建預設）
-- 渲染 `{{question}}`、`{{context}}`
-- 呼叫 Ollama `/api/chat`（非串流），把回答印到終端
-
-## 新增流程（add）
-- 儲存筆記（Storage.Save）→ 更新索引（IndexNote）
-- 回傳 Note.ID 方便後續引用
-
-## 錯誤處理策略
-- Ollama 不可達：提示檢查服務/埠/模型；可用 `--ollama-host` 覆寫
-- 索引缺失：首次自動建立，並提示索引會花時間
-- 模板缺失：回退內建模板並打印警示
-- I/O 失敗：顯示具體路徑與建議（權限/磁碟/唯讀）
-
-## 測試矩陣（table‑driven）
-- search：
-  - IndexNote/Query 流程、tags 過濾、空結果、分數排序穩定性
-  - in‑memory stub 與 Bleve 實作行為一致性
-- agent：
-  - mock HTTP 驗證 payload、options、錯誤分支與逾時
-- config：
-  - 預設值合併、YAML 覆寫、非法 YAML 與缺欄位容錯
-- tui：
-  - Enter/Esc、內容/標籤解析（`#tag` 抽取）、基本狀態轉換
-- cli（若開啟）：
-  - 參數解析、錯誤訊息、人性化提示
+## 文件定位
+- **目的**：定義 AI 與 Reviewer 的角色分工與工作流程，確保專案在嚴格 TDD 下協作順暢。  
+- **範圍**：本文件僅描述「角色與流程規範」，技術細節另見 [ARCHITECTURE.md](./ARCHITECTURE.md)。  
+- **受眾**：AI Agent、Reviewer/Gatekeeper，以及參與專案維運者。
 
 ---
 
-## 提交與驗收（Definition of Done）
-- 測試：現有測試全綠；新功能要有最小測試，覆蓋關鍵路徑
-- 品質：`go fmt`、`go vet` 無錯；不引入不必要相依；避免過早抽象
-- 文件：README/AGENTS 同步更新；有對外變更就補使用說明
-- 相容：不隨意升級依賴；若必要，附相容性說明與變更摘要
-- 風險：提供回滾策略（可單獨 revert）與替代方案
+## 角色定義
 
-## 安全與邊界（必讀）
-- 禁止讀寫或上傳：`.env`, `secrets.*`, `*.key`, `id_*`, `*.pem`, `node_modules/`, `vendor/`, `storage/`, `tmp/`, `.git/`，以及任何 `.gitignore` 忽略的敏感檔
-- 只在專案工作目錄內操作；無許可不要連外或下載套件
-- 可能破壞性操作（大量重構、刪檔、改 CI）：先提計畫/風險/回滾，再動手
-- 「快速執行」情境（依賴版本）：預設採用套件最新穩定版；若要鎖版本，請在文件標明原因與影響
-- 預設測試重點：
-  - search：索引/查詢、tags 過濾、空結果、分數排序穩定
-  - agent：mock HTTP 驗證 payload/options 與錯誤分支
-  - config：預設值合併、非法 YAML、缺欄位處理
-  - tui：Enter/Esc、Content/Tags 解析（`#tag` 提取）
+### AI Agent（驅動設計與實作）
+- 規劃藍圖與介面邊界。  
+- 提供或更新測試與測試資料。  
+- 標註風險、替代方案與回滾策略。  
+- 負責實作，並維護小步迭代。
 
-## 路線圖（小步、可回滾）
-- M1 文件落地
-- M2 介面骨架：新增 `storage/`, `search/`, `agent/`, `config/` 最小實作（不動 TUI）
-- M3 指令最小版：`ora add` 寫檔＋索引、`ora ask` 只顯示檢索片段（暫不呼叫 LLM）
-- M4 LLM 串接：非串流回覆＋`--template/--model` 旗標
-- M5 TUI 整合：AddNote 寫檔與提示結果；之後再加查詢頁
+### Reviewer / Gatekeeper
+- 僅審查測試與介面可行性與安全性。  
+- 不直接撰寫功能碼。  
+- 在測試紅燈時回饋落差，協助 AI 調整測試或介面。  
 
-### M5 擴充：TUI 對話頁布局（設計藍圖）
+（可選擴充：PM/PO/UX 代理角色，另行增補）
 
-- 目標：
-  - 將對話輸入欄固定在終端底部，歷史對話與回應置於上方可滾動區域。
-  - 使用不同色彩與邊框樣式區分「使用者訊息」與「AI 回覆」，提升可讀性與掃描效率。
-- 介面契約（TUI 層新增，不影響後端模組）：
-  - `tui/chat` model：
-    - 狀態：`messages []Message`, `viewportOffset int`, `input string`。
-    - 行為：`Send(content string)`, `Scroll(delta int)`, `Resize(width,height int)`。
-    - 呈現：`view()` 以兩區塊組成：`historyViewport`（上）＋`inputBar`（下，固定高度）。
-  - Message：`role: user|assistant|system`, `content string`, `ts time.Time`。
-- 互動與鍵位：
-  - `Enter` 送出（`Shift+Enter` 換行）；`Esc` 清空或返回上一層；`PgUp/PgDn`、`↑/↓` 滾動歷史。
-- 視覺樣式（以 `lipgloss` 集中管理）：
-  - user：冷色系邊框（藍），右對齊；assistant：暖色系邊框（紫/綠），左對齊；system：灰色細邊框。
-  - 一致的 `padding/margin/radius` 與弱化的時間戳；保留主題化擴充空間。
-- 共用元件：
-  - `DockStyle`：底部輸入區的通用樣式（圓角邊框＋內距），`chat` 與 `add` 頁共用以保持一致性。
-- 技術與風險：
-  - 預設使用 alternate screen（`tea.WithAltScreen`），可由 `--no-alt` 關閉以利除錯或兼容性。
-  - 視窗大小變更需重算 viewport 高度，避免輸入欄漂移；訊息多時注意效能（僅渲染可視範圍）。
-  - 回滾策略：若 UI 影響互動效率，保留現行 AddNote 單頁為預設入口；對話頁以子指令或旗標切換。
+---
+
+## 工作流程（嚴格 TDD）
+
+### 流程圖（Mermaid）
+```mermaid
+graph TD
+    A[AI 提小步變更計畫＋測試清單] --> B[Reviewer 審查測試與風險]
+    B -->|同意| C[AI 依測試實作 → 紅 → 綠]
+    C --> D[重構（維持外部行為不變）]
+    D --> E[驗收：go fmt, go vet, go test]
+    E --> F[文件同步更新]
+```
+
+### 步驟（簡述）
+1. **計畫**：AI 提小步變更計畫＋測試檔案清單。  
+2. **審查**：Reviewer 確認測試覆蓋關鍵行為與風險。  
+3. **實作**：AI 依測試實作，確保紅 → 綠。  
+4. **重構**：僅在綠燈後，維持外部行為不變。  
+5. **驗收**：跑 `go fmt`, `go vet`, `go test ./... -cover`。  
+6. **文件同步**：更新 README/AGENTS/使用說明。  
+
+---
+
+## 規則與安全邊界
+- **必須**：所有變更需先有測試。  
+- **不得**：讀寫敏感檔案（如 `.env`, `secrets.*`, `*.pem` 等）。  
+- **建議**：小步提交、單一主題 PR、可回滾。  
+
+### 常見錯誤 vs 正確示例（表格化）
+
+| 常見錯誤 | 正確做法 |
+|----------|-----------|
+| 一次大重構，提交難以回滾 | 拆成小步驟，每步可測、可回滾 |
+| Reviewer 直接修改功能碼 | Reviewer 僅提供意見，修改由 AI 執行 |
+| 缺乏測試就直接實作 | 先撰寫最小測試，再開始實作 |
+| 文件不同步（程式更新但 AGENTS 未改） | 每次提交需同步更新文件，保持一致 |
+| PR 涵蓋過多主題 | 保持單一主題，避免複雜合併 |
+
+---
+
+## 文件維護
+- **版本號**：v1.0.0  
+- **更新紀錄**：每次修改需加註日期與摘要。  
+- **維護責任人**：專案 Owner（可在 README 指定）。
+
+---

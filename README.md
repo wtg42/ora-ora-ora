@@ -41,7 +41,7 @@
     ```
 - 設定檔（可選）：
   - `--config path/to/config.yaml`（未提供時使用內建預設）
-- 進階旗標（測試/進階用）：
+  - 進階旗標（測試/進階用）：
   - `--notes-dir /path/to/dir` 覆寫筆記資料夾（僅 CLI 測試或特殊佈署使用）。
 
 ### 啟動 TUI
@@ -51,7 +51,31 @@
   - `go run . start-tui --no-alt`
  - 切換頁面：
    - `go run . start-tui --page chat` 啟動對話頁（輸入固定底部、歷史在上方可滾動）。
-   - `--page add` 為預設頁（維持現有新增筆記流程）。
+  - `--page add` 為預設頁（維持現有新增筆記流程）。
+
+---
+
+## 測試環境與沙箱限制
+
+在受限的本地沙箱或 CI 環境（例如無法任意綁定埠、限制使用者快取寫入）下，`go test` 可能出現以下症狀：
+
+- `httptest: failed to listen on a port: bind: operation not permitted`：測試內部使用 `httptest.NewServer()` 需要在 `::1` 或 `127.0.0.1` 綁定臨時埠。
+- `open .../Library/Caches/go-build/...: operation not permitted` 或 `go: failed to trim cache`：Go build/test 嘗試寫入使用者層級的 go-build 快取。
+
+建議解法與注意事項：
+
+- 本地端
+  - 允許測試程序在本機回環介面（`::1`/`127.0.0.1`）綁定臨時埠。
+  - 允許寫入使用者目錄下的 go-build cache（macOS 預設在 `~/Library/Caches/go-build`）。
+  - 若使用受限沙箱（如某些 CLI/Agent 環境），在允許的情況下以「提升權限」模式執行 `go test`。
+
+- CI 環境
+  - 確保 runner 具回環介面綁定權限（loopback binding）。
+  - 若 CI 政策禁用使用者快取，設定 `GOCACHE` 指向工作目錄內可寫路徑，例如：
+    - `GOCACHE=$PWD/.gocache go test ./...`
+  - 可在 workflow 中預先建立並快取 `.gocache/` 以加速編譯。
+
+此段為測試穩定性備註，不影響程式行為；如遇未列出的限制，請開 issue 附上錯誤訊息與執行環境描述。
 
 ### TUI 對話頁布局（規劃）
 
@@ -267,8 +291,12 @@ Bleve 索引結構（依本專案 Note 資料模型調整）：
 
 ## 進度同步（AI 專用）
 
+- **已完成**：
+  - ✅ Bleve 導入：從 in-memory 過渡到持久化索引，保持介面不變。
+- **已完成**：
+  - ✅ Bleve 導入：從 in-memory 過渡到持久化索引，保持介面不變。
 - 下一步（待辦，精簡）：
-  - Chat：整合 ask/LLM 回覆（保留 `--no-llm`），加 mock 測試。
+  - Chat：整合 ask/LLM 回覆（保留 --no-llm），加 mock 測試。
   - 文件：更新 README 的 TUI 操作與鍵位（Enter/Alt+Enter/Esc/PgUp/PgDn）與底部 help 列，必要時附示意圖。
   - AddWizard：擴充標籤解析案例與邊界測試，文件化正規化/排序規則。
   - 效能：評估儲存/索引延遲初始化以降低啟動成本（僅在確認儲存時初始化）。
