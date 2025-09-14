@@ -50,10 +50,89 @@
 - 若終端不支援或需要除錯，可加入 `--no-alt` 停用 alternate screen：
   - `go run . start-tui --no-alt`
  - 切換頁面：
-   - `go run . start-tui --page chat` 啟動對話頁（輸入固定底部、歷史在上方可滾動）。
+  - `go run . start-tui --page chat` 啟動對話頁（輸入固定底部、歷史在上方可滾動）。
   - `--page add` 為預設頁（維持現有新增筆記流程）。
 
 ---
+
+### TUI 設定面板（F2）
+
+- 在聊天頁（`--page chat`）按下 `F2` 可開啟/關閉「設定面板」（簡化版）。
+- 本階段可調整的參數（僅作用於當前 session，不寫入檔案）：
+  - LLM：On/Off（預設 Off）
+  - Model：例如 `llama3`
+  - Ollama Host：例如 `http://127.0.0.1:11434`
+  - TopK：檢索片段數（預設 5）
+  - Temperature：0–1 浮點（預設 0）
+- 面板操作鍵（簡化版）：
+  - `F2`：開/關設定面板
+  - `l`：切換 LLM 開關（On/Off）
+  - `]` / `[`：增加/減少 TopK（下限 1）
+  - `>` / `<`：增加/減少 Temperature（區間 0~1，步進 0.05）
+  - `Enter`：套用（將面板暫存值寫回當前 chat 狀態）
+  - `Esc`：關閉面板（不套用變更）
+  - `Tab` / `Shift+Tab`：在 Model 與 Host 欄位間切換輸入焦點
+- 面板錯誤提示（最小驗證）：
+  - Host 必填：若為空白，按 Enter 不會套用並在面板內顯示錯誤文字（保持面板開啟）。
+  - Model 必填：若為空白亦同。
+  - Host 格式：需以 `http://` 或 `https://` 開頭，否則顯示錯誤。
+  - `t`：在面板內可按 `t` 進行 Ollama 連線測試，面板下方會顯示結果（僅提示，不阻斷套用）。
+  
+  範例操作（示意）：
+  ```
+  F2           # 開啟面板
+  l            # 切換 LLM → On
+  Tab          # 切換到 Model 欄位
+  輸入：llama3
+  Tab          # 切換到 Host 欄位
+  輸入：http://127.0.0.1:11434
+  ]            # TopK +1（可多次）
+  >            # Temperature +0.05（可多次）
+  t            # 探測 Ollama，底部顯示 ok/錯誤 提示
+  Enter        # 套用變更
+  ```
+- 送出流程：
+  - 使用者送出訊息後，先執行檢索並顯示 Top‑K 片段的 NoteID 清單。
+  - 若 LLM=On，則會基於檢索片段組合提示，呼叫 Ollama `/api/chat` 回覆，將答案追加到對話中。
+- 錯誤處理：
+  - 連線逾時或無法連線，會提示檢查 `ollama serve` 或關閉 LLM 回退僅檢索模式。
+
+---
+
+### Ollama 快速測試（dev/Makefile）
+
+若要快速驗證本機 Ollama 服務與模型可用，提供以下指令（於專案根執行時加上 `-C dev`）：
+
+- 列出模型：
+  - `make -C dev ollama-tags`
+- 連線健檢（version + tags）：
+  - `make -C dev ollama-probe`
+- 測試 generate 端點（請先設定模型名）：
+  - `make -C dev ollama-generate OLLAMA_MODEL="hf.co/bartowski/Llama-3.2-3B-Instruct-GGUF:Q4_K_M" PROMPT="hello"`
+- 測試 chat 端點：
+  - `make -C dev ollama-chat OLLAMA_MODEL="hf.co/bartowski/Llama-3.2-3B-Instruct-GGUF:Q4_K_M" MESSAGE="hello"`
+
+可覆寫的變數：
+- `OLLAMA_HOST` 預設 `http://localhost:11434`
+- `OLLAMA_MODEL` 需與本機模型標籤一致
+- `PROMPT`（generate 用）與 `MESSAGE`（chat 用）
+
+提示：若出現 404 model not found，請使用 `make -C dev ollama-tags` 查得的完整模型名稱，或先以 `ollama pull`/`ollama cp` 準備模型。
+
+---
+
+### 一鍵新手測試（dev/Makefile）
+
+- 目的：一鍵完成「新增兩筆 → 檢索 →（可選）LLM 摘要」新手上手流程。
+- 指令：
+  - `make -C dev demo-beginner`
+- 行為：
+  - 在 `/tmp/ora-notes` 新增兩筆示範筆記（含/不含 bleve）。
+  - 執行 `ask "bleve" --topk 3 --no-llm` 列出命中的 NoteID。
+  - 若環境有設定 `OLLAMA_MODEL`，會以低資源參數（`temp=0, top-p=0.1, num-ctx=1024, num-predict=128`）與嚴格模板發出 LLM 回答（可透過 `OLLAMA_HOST` 覆蓋連線位址）。
+- 可覆寫變數：
+  - `NOTES_DIR=/tmp/ora-notes`（預設）、`OLLAMA_HOST=http://127.0.0.1:11434`、`OLLAMA_MODEL=<你的模型名>`。
+- 不會覆寫你的正式資料；所有檔案產生於 `/tmp` 與暫存 notes 目錄。
 
 ## 測試環境與沙箱限制
 
@@ -69,6 +148,13 @@
   - 允許寫入使用者目錄下的 go-build cache（macOS 預設在 `~/Library/Caches/go-build`）。
   - 若使用受限沙箱（如某些 CLI/Agent 環境），在允許的情況下以「提升權限」模式執行 `go test`。
 
+- 開發者/AI 一致化執行
+  - 專案提供 `dev/Makefile`，統一測試命令與快取設定：
+    - `make -C dev test`：在專案根執行全套測試（使用專案內 `.gocache`）。
+    - `make -C dev test-race`：啟用 race 檢查執行。
+    - `make -C dev vet` / `fmt` / `tidy`：常用靜態檢查與維護指令。
+  - 目的：讓本地與 AI/CI 在相同條件下跑測試，降低環境差異。
+
 - CI 環境
   - 確保 runner 具回環介面綁定權限（loopback binding）。
   - 若 CI 政策禁用使用者快取，設定 `GOCACHE` 指向工作目錄內可寫路徑，例如：
@@ -77,7 +163,7 @@
 
 此段為測試穩定性備註，不影響程式行為；如遇未列出的限制，請開 issue 附上錯誤訊息與執行環境描述。
 
-### TUI 對話頁布局（規劃）
+### TUI 對話頁布局
 
 - 目標：提供沉浸式對話體驗，輸入欄固定於底部，歷史訊息於上方可滾動，並以顏色與邊框樣式加以區分，參考常見的 chat UI。
 - 版面配置：
@@ -89,8 +175,12 @@
   - 使用者訊息：以冷色系邊框（例：藍），靠右排列；系統/AI 回覆：以暖色系邊框（例：紫/綠），靠左排列。
   - 內容區塊保持一致的內距與圓角，避免雜訊；時間戳記與標籤採弱化色。
 - 互動行為：
-  - Enter 送出（Shift+Enter 換行）；Esc 清空或回上層。
+  - Enter：送出訊息。
+  - Shift+Enter：換行（多行輸入）。
+  - Esc：清空輸入或返回上層。
+  - PgUp/PgDn：滾動歷史訊息。
   - 送出後將焦點留在輸入框；歷史區自動滾至最新訊息並保留滾動位置記憶。
+- 底部 help 列：顯示當前可用鍵位提示，例如 "Enter: Send | Shift+Enter: New Line | Esc: Clear | F2: Settings"。
 - 技術要點：
   - 採用 alternate screen（預設開啟，可用 `--no-alt` 關閉），避免污染終端歷史。
   - 以 Bubble Tea 的 model/update/view 管理狀態；訊息流維持不可變 slice，滾動以 viewport 或自製 offset 控制。
@@ -293,11 +383,6 @@ Bleve 索引結構（依本專案 Note 資料模型調整）：
 
 - **已完成**：
   - ✅ Bleve 導入：從 in-memory 過渡到持久化索引，保持介面不變。
-- **已完成**：
-  - ✅ Bleve 導入：從 in-memory 過渡到持久化索引，保持介面不變。
 - 下一步（待辦，精簡）：
-  - Chat：整合 ask/LLM 回覆（保留 --no-llm），加 mock 測試。
-  - 文件：更新 README 的 TUI 操作與鍵位（Enter/Alt+Enter/Esc/PgUp/PgDn）與底部 help 列，必要時附示意圖。
-  - AddWizard：擴充標籤解析案例與邊界測試，文件化正規化/排序規則。
   - 效能：評估儲存/索引延遲初始化以降低啟動成本（僅在確認儲存時初始化）。
   - TUI UX：儲存成功後是否暫留提示再退出、錯誤後提示可重試的文案。

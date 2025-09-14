@@ -49,7 +49,11 @@ graph LR
 ---
 
 ## 開發與測試策略
-- 使用 Go `testing` 框架，採 table-driven 測試。
+- 強制序列：先文件、後測試、再實作（Documentation → Tests → Code）。
+  - 任何新功能與介面變更，需先更新 README/AGENTS/本檔之對應段落。
+  - 測試以紅→綠驅動實作，綠燈後方可重構且不得改變外部行為。
+- 使用 Go `testing` 框架，採 table-driven 測試；建議在 `dev/Makefile` 下執行：
+  - `make -C dev test`、`make -C dev test-race`、`make -C dev vet`、`make -C dev fmt`、`make -C dev tidy`。
 - 覆蓋範圍：
   - 搜尋（索引、查詢、排序）- ✅ 包含 Bleve 與 in-memory 雙實作測試
   - CLI/TUI 互動
@@ -79,5 +83,4 @@ graph LR
 - 索引缺失 → 自動建立並提示。  
 - 模板缺失 → 使用內建預設並警示。  
 - I/O 失敗 → 顯示具體錯誤與建議修復步驟。  
-
 
