@@ -143,5 +143,5 @@ func TestAddWizard_Save_Error_ShowsMessage_Stay(t *testing.T) {
 	assert.Contains(t, v, "Error: disk full")
 	// should not quit (view not empty and prompt visible)
 	assert.NotEqual(t, "", v)
-	assert.Contains(t, v, "> ")
+	assert.Contains(t, v, "▌ ")
 }

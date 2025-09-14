@@ -5,6 +5,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -28,20 +29,21 @@ type NoteSaveErrorMsg struct{ Err error }
 
 // keyMap defines the key bindings for the TUI.
 type keyMap struct {
-	Submit key.Binding
-	Quit   key.Binding
-	Tab    key.Binding
+	Submit  key.Binding
+	Quit    key.Binding
+	Tab     key.Binding
+	Newline key.Binding
 }
 
 // ShortHelp returns keybindings to be shown in the mini help view.
 func (k keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Submit, k.Quit, k.Tab}
+	return []key.Binding{k.Submit, k.Newline, k.Quit, k.Tab}
 }
 
 // FullHelp returns keybindings for the expanded help view.
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.Submit, k.Quit, k.Tab}, // first column
+		{k.Submit, k.Newline, k.Quit, k.Tab}, // first column
 	}
 }
 
@@ -58,6 +60,10 @@ var keys = keyMap{
 		key.WithKeys("tab"),
 		key.WithHelp("tab", "switch input"),
 	),
+	Newline: key.NewBinding(
+		key.WithKeys("ctrl+j"),
+		key.WithHelp("ctrl+j", "newline"),
+	),
 }
 
 // Styles
@@ -71,7 +77,7 @@ var (
 
 // AddNoteModel is a bubbletea model for adding a new note.
 type AddNoteModel struct {
-	ContentInput textinput.Model
+	ContentInput textarea.Model
 	TagsInput    textinput.Model
 	Status       string
 	quitting     bool
@@ -81,17 +87,20 @@ type AddNoteModel struct {
 	keys         keyMap
 	width        int
 	height       int
+	inputHeight  int // 動態調整輸入框高度
 }
 
 // NewAddNoteModel initializes a new model for adding a note.
 func NewAddNoteModel(saver noteSaver, indexer noteIndexer) AddNoteModel {
-	content := textinput.New()
+	content := textarea.New()
 	content.Placeholder = "What's on your mind?"
-	content.Focus()
+	content.Prompt = "▌ "
+	content.FocusedStyle.Prompt = promptStyle
+	content.BlurredStyle.Prompt = promptStyle
+	content.ShowLineNumbers = false
 	content.CharLimit = 4096
-	content.Prompt = "> "
-	content.PromptStyle = promptStyle
-	content.CursorStyle = cursorStyle
+	content.SetHeight(1) // 初始高度 1
+	content.Focus()
 
 	tags := textinput.New()
 	tags.Placeholder = "dev,go,ai"
@@ -107,12 +116,13 @@ func NewAddNoteModel(saver noteSaver, indexer noteIndexer) AddNoteModel {
 		indexer:      indexer,
 		help:         help.New(),
 		keys:         keys,
+		inputHeight:  1, // 初始高度 1
 	}
 }
 
 // Init command for the model.
 func (m AddNoteModel) Init() tea.Cmd {
-	return textinput.Blink
+	return textarea.Blink
 }
 
 // Update handles incoming messages.
@@ -121,10 +131,13 @@ func (m AddNoteModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		m.width, m.height = msg.Width, msg.Height
-		m.help.Width = msg.Width
+		// 考慮容器邊距的可用空間
+		effectiveWidth := msg.Width - ContainerStyle.GetHorizontalFrameSize()
+		effectiveHeight := msg.Height - ContainerStyle.GetVerticalFrameSize()
+		m.width, m.height = effectiveWidth, effectiveHeight
+		m.help.Width = m.width
 		inputWidth := m.width - containerStyle.GetHorizontalFrameSize()
-		m.ContentInput.Width = inputWidth
+		m.ContentInput.SetWidth(inputWidth)
 		m.TagsInput.Width = inputWidth
 		return m, nil
 
@@ -140,6 +153,14 @@ func (m AddNoteModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			} else {
 				m.TagsInput.Blur()
 				m.ContentInput.Focus()
+			}
+			return m, nil
+		case key.Matches(msg, m.keys.Newline):
+			if m.ContentInput.Focused() {
+				// Ctrl+j: 插入換行並繼續編輯，增加高度
+				m.ContentInput.SetValue(m.ContentInput.Value() + "\n")
+				m.inputHeight++
+				m.ContentInput.SetHeight(m.inputHeight)
 			}
 			return m, nil
 		case key.Matches(msg, m.keys.Submit):
@@ -207,7 +228,10 @@ func (m AddNoteModel) View() string {
 	}
 	placed := lipgloss.Place(m.width, availH, lipgloss.Left, lipgloss.Bottom, bottom)
 
-	return lipgloss.JoinVertical(lipgloss.Top, placed, helpView)
+	inner := lipgloss.JoinVertical(lipgloss.Top, placed, helpView)
+	// 應用容器邊距
+	totalWidth := m.width + ContainerStyle.GetHorizontalFrameSize()
+	return ContainerStyle.Width(totalWidth).Render(inner)
 }
 
 // FinalNote extracts the note data from the model.

@@ -10,3 +10,10 @@ var DockStyle = lipgloss.NewStyle().
 	Border(lipgloss.RoundedBorder()).
 	BorderForeground(lipgloss.Color("63")).
 	Padding(0, 1)
+
+// ContainerStyle 定義全局容器樣式，提供邊距避免 UI 貼近邊緣。
+// 目的：
+// - 適應 tmux 等多工器佔用空間。
+// - 統一應用到所有頁面根容器。
+var ContainerStyle = lipgloss.NewStyle().
+	Margin(1, 2)

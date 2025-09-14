@@ -18,13 +18,14 @@ import (
 
 // AddWizardModel：以聊天模式蒐集 add 所需參數（僅彙整與顯示，不進行儲存）。
 type AddWizardModel struct {
-	history  viewport.Model
-	input    textarea.Model
-	keys     chatKeyMap
-	width    int
-	height   int
-	messages []Message
-	quitting bool
+	history     viewport.Model
+	input       textarea.Model
+	keys        chatKeyMap
+	width       int
+	height      int
+	inputHeight int // 動態調整輸入框高度
+	messages    []Message
+	quitting    bool
 	// dependencies for saving/indexing
 	saver   noteSaver
 	indexer noteIndexer
@@ -39,21 +40,22 @@ type AddWizardModel struct {
 func NewAddWizardModel() AddWizardModel {
 	ti := textarea.New()
 	ti.Placeholder = "請以自然語言描述你的筆記（可含 #標籤 或 tags: ...）"
-	ti.Prompt = "> "
+	ti.Prompt = "▌ "
 	ti.FocusedStyle.Prompt = lipgloss.NewStyle().Foreground(lipgloss.Color("63"))
 	ti.BlurredStyle.Prompt = lipgloss.NewStyle().Foreground(lipgloss.Color("63"))
 	ti.ShowLineNumbers = false
 	ti.CharLimit = 4096
-	ti.SetHeight(3) // 預設 3 行，Alt+Enter 可換行
+	ti.SetHeight(1) // 初始高度 1
 	ti.Focus()
 
 	vp := viewport.Model{}
 	m := AddWizardModel{
-		history:  vp,
-		input:    ti,
-		keys:     chatKeys,
-		messages: nil,
-		help:     help.New(),
+		history:     vp,
+		input:       ti,
+		keys:        chatKeys,
+		inputHeight: 1, // 初始高度 1
+		messages:    nil,
+		help:        help.New(),
 	}
 	// 初始系統提問
 	m.appendSystem("請描述要新增的筆記內容。\n- 可直接輸入文字；標籤可用 #tag 或 'tags: a,b'。\n- 我會解析內容與標籤並顯示彙整結果供你確認。")
@@ -73,35 +75,40 @@ func (m AddWizardModel) Init() tea.Cmd { return textarea.Blink }
 func (m AddWizardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		m.width, m.height = msg.Width, msg.Height
+		// 考慮容器邊距的可用空間
+		effectiveWidth := msg.Width - ContainerStyle.GetHorizontalFrameSize()
+		effectiveHeight := msg.Height - ContainerStyle.GetVerticalFrameSize()
+		m.width, m.height = effectiveWidth, effectiveHeight
 		m.input.SetWidth(m.width)
-		m.help.Width = msg.Width
-		// 以 DockStyle 量測輸入 Dock 實際高度
-		dockHeight := lipgloss.Height(DockStyle.Width(m.width).Render(m.input.View()))
-		h := m.height - dockHeight
-		h = max(h, 3)
+		m.help.Width = msg.Width // help 使用總寬度來決定顯示模式
+		// 量測輸入區和 help 的高度
+		inputHeight := lipgloss.Height(m.input.View())
+		helpView := m.help.View(m.keys)
+		helpHeight := lipgloss.Height(helpView)
+		h := m.height - inputHeight - helpHeight
+		h = max(h, 1) // 歷史區最小 1 行
 		m.history.Width, m.history.Height = m.width, h
 		m.refreshHistory()
+		// 調整歷史區高度以緊跟內容
+		contentHeight := lipgloss.Height(m.history.View())
+		if contentHeight < h {
+			m.history.Height = contentHeight
+		}
 		return m, nil
 
 	case tea.KeyMsg:
-		// Alt+Enter: 插入換行並繼續編輯（不觸發送出）
-		if msg.Type == tea.KeyEnter && msg.Alt {
-			m.input.SetValue(m.input.Value() + "\n")
-			return m, nil
-		}
 		switch {
+		case key.Matches(msg, m.keys.Newline):
+			// Ctrl+j: 插入換行並繼續編輯，增加高度
+			m.input.SetValue(m.input.Value() + "\n")
+			m.inputHeight++
+			m.input.SetHeight(m.inputHeight)
+			return m, nil
 		case key.Matches(msg, m.keys.Quit):
 			m.quitting = true
 			return m, tea.Quit
 		case key.Matches(msg, m.keys.Send):
 			content := strings.TrimSpace(m.input.Value())
-			// Alt+Enter：改為插入換行（交由 textarea 處理）。
-			if msg.Alt {
-				// 明確插入換行於末端（簡化處理，不考慮游標位置）。
-				m.input.SetValue(m.input.Value() + "\n")
-				return m, nil
-			}
 			if content == "" {
 				return m, nil
 			}
@@ -111,6 +118,8 @@ func (m AddWizardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				switch low {
 				case "ok", "yes", "y":
 					m.input.Reset()
+					m.inputHeight = 1
+					m.input.SetHeight(1)
 					// 需要依賴才能儲存
 					if m.saver == nil || m.indexer == nil {
 						m.appendAssistant("Error: storage/index not configured")
@@ -145,6 +154,8 @@ func (m AddWizardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					// 視為新內容，重新進入彙整
 					m.appendUser(content)
 					m.input.Reset()
+					m.inputHeight = 1
+					m.input.SetHeight(1)
 					c, tags := parseAddInput(content)
 					m.parsedContent, m.parsedTags = c, tags
 					sum := summarizeParsed(c, tags)
@@ -157,6 +168,8 @@ func (m AddWizardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// 一般輸入：彙整並進入確認階段
 			m.appendUser(content)
 			m.input.Reset()
+			m.inputHeight = 1
+			m.input.SetHeight(1)
 			c, tags := parseAddInput(content)
 			m.parsedContent, m.parsedTags = c, tags
 			sum := summarizeParsed(c, tags)
@@ -197,9 +210,11 @@ func (m AddWizardModel) View() string {
 		return ""
 	}
 	top := m.history.View()
-	bottom := DockStyle.Width(m.width).Render(m.input.View())
 	helpView := m.help.View(m.keys)
-	return lipgloss.JoinVertical(lipgloss.Top, top, bottom, helpView)
+	inner := lipgloss.JoinVertical(lipgloss.Top, top, m.input.View(), helpView)
+	// 應用容器邊距
+	totalWidth := m.width + ContainerStyle.GetHorizontalFrameSize()
+	return ContainerStyle.Width(totalWidth).Render(inner)
 }
 
 // --- internal helpers ---
@@ -246,7 +261,7 @@ func parseAddInput(s string) (content string, tags []string) {
 	tagsSet := map[string]struct{}{}
 
 	// 1) #hashtags
-	reHash := regexp.MustCompile(`#([A-Za-z0-9_-]+)`) // 簡化規則
+	reHash := regexp.MustCompile(`#([^\s#]+)`) // 匹配 # 後的非空白非#字符
 	for _, m := range reHash.FindAllStringSubmatch(raw, -1) {
 		if len(m) > 1 {
 			tagsSet[strings.ToLower(m[1])] = struct{}{}
@@ -256,15 +271,17 @@ func parseAddInput(s string) (content string, tags []string) {
 
 	// 2) tags: a,b / 標籤: a b
 	reTags := regexp.MustCompile(`(?i)(tags|標籤)\s*[:：]\s*([#A-Za-z0-9_\-\s,]+)`) // 寬鬆擷取
-	if m := reTags.FindStringSubmatch(s); len(m) == 3 {
-		list := strings.FieldsFunc(m[2], func(r rune) bool { return r == ',' || r == ' ' || r == '\t' })
-		for _, t := range list {
-			t = strings.TrimSpace(strings.TrimPrefix(t, "#"))
-			if t != "" {
-				tagsSet[strings.ToLower(t)] = struct{}{}
+	for _, m := range reTags.FindAllStringSubmatch(s, -1) {
+		if len(m) == 3 {
+			list := strings.FieldsFunc(m[2], func(r rune) bool { return r == ',' || r == ' ' || r == '\t' })
+			for _, t := range list {
+				t = strings.TrimSpace(strings.TrimPrefix(t, "#"))
+				if t != "" {
+					tagsSet[strings.ToLower(t)] = struct{}{}
+				}
 			}
+			raw = strings.ReplaceAll(raw, m[0], "")
 		}
-		raw = strings.ReplaceAll(raw, m[0], "")
 	}
 	// 內容清理
 	content = strings.TrimSpace(raw)

@@ -31,7 +31,24 @@ func TestChatModel_EnterSendsMessageAndKeepsPrompt(t *testing.T) {
 
 	// input should be cleared; prompt should still be visible at the end
 	v := m.View()
-	if !strings.Contains(v, "> ") {
+	if !strings.Contains(v, "▌ ") {
 		t.Fatalf("expected prompt to be visible in view")
+	}
+}
+
+func TestChatModel_LayoutWithMargins(t *testing.T) {
+	m := tui.NewChatModel()
+	// 設置窗口大小，應減去容器邊距
+	m = updateChat(m, tea.WindowSizeMsg{Width: 80, Height: 24})
+
+	// 檢查 View 是否應用了容器樣式
+	v := m.View()
+	lines := strings.Split(v, "\n")
+	if len(lines) == 0 {
+		t.Fatal("expected view to have content")
+	}
+	// 第一行應有左邊距（空格），Margin(1,2) 在左側添加2個空格
+	if !strings.HasPrefix(lines[0], "  ") {
+		t.Fatalf("expected view to start with margin spaces, got: %q", lines[0])
 	}
 }

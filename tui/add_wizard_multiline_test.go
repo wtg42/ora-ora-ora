@@ -22,10 +22,10 @@ func TestAddWizard_Multiline_AltEnterThenSend(t *testing.T) {
 	mm, _ := driveModel(m, tea.WindowSizeMsg{Width: 80, Height: 20})
 	m = mm.(tui.AddWizardModel)
 
-	// type 'hello', Alt+Enter to insert newline, then 'world', then Enter to summarize
+	// type 'hello', Ctrl+j to insert newline, then 'world', then Enter to summarize
 	mm, _ = driveModel(m,
 		tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("hello")},
-		tea.KeyMsg{Type: tea.KeyEnter, Alt: true}, // newline
+		tea.KeyMsg{Type: tea.KeyCtrlJ}, // newline
 		tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("world")},
 		tea.KeyMsg{Type: tea.KeyEnter}, // send
 	)
@@ -57,5 +57,57 @@ func TestAddWizard_Tags_NormalizeAndDedupAndSort(t *testing.T) {
 	// After normalization and sorting, expect 'dev, go'
 	if !strings.Contains(v, "標籤: dev, go") {
 		t.Fatalf("expected normalized and sorted tags, got: %q", v)
+	}
+}
+
+func TestAddWizard_Tags_EdgeCases(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "chinese tags",
+			input:    "學習 tags: chinese,learn,program",
+			expected: "chinese, learn, program",
+		},
+		{
+			name:     "special chars in tags",
+			input:    "#test_123 #test-456 tags: test_789,test-000",
+			expected: "test-000, test-456, test_123, test_789",
+		},
+		{
+			name:     "empty tags",
+			input:    "content only # tags: , ,",
+			expected: "(無)",
+		},
+		{
+			name:     "multiple tags sections",
+			input:    "#first tags: second,third 標籤: fourth",
+			expected: "first, fourth, second, third",
+		},
+		{
+			name:     "mixed hash and tags",
+			input:    "#a tags: b,c #d",
+			expected: "a, b, c, d",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := tui.NewAddWizardModel()
+			mm, _ := driveModel(m, tea.WindowSizeMsg{Width: 80, Height: 20})
+			m = mm.(tui.AddWizardModel)
+
+			mm, _ = driveModel(m,
+				tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(tt.input)},
+				tea.KeyMsg{Type: tea.KeyEnter},
+			)
+			m = mm.(tui.AddWizardModel)
+			v := m.View()
+			if !strings.Contains(v, "標籤: "+tt.expected) {
+				t.Fatalf("expected tags '%s', got view: %q", tt.expected, v)
+			}
+		})
 	}
 }
