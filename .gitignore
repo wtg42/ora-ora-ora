@@ -33,3 +33,11 @@ go.work.sum
 
 # Ora-ora-ora data
 data/notes/
+
+# Project artifacts (ignore local build caches, logs, and indexes)
+bin/
+.gocache/
+dev/out/
+data/index/
+cmd/data/index/
+err.log
