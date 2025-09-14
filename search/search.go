@@ -86,8 +86,9 @@ func (i *inMemoryIndex) Query(q string, topK int, tags []string) ([]Snippet, err
 			}
 		}
 		results = append(results, Snippet{
-			NoteID: id,
-			Score:  1.0, // dummy score
+			NoteID:  id,
+			Excerpt: makeExcerpt(note.Content, 160),
+			Score:   1.0, // dummy score
 		})
 	}
 	// Limit to topK
@@ -184,6 +185,8 @@ func (b *bleveIndex) Query(q string, topK int, tags []string) ([]Snippet, error)
 	searchRequest := bleve.NewSearchRequest(searchQuery)
 	searchRequest.Size = topK
 	searchRequest.SortBy([]string{"-_score", "created_at"}) // Default relevance, then by date
+    // 取回 content 以產生 excerpt
+    searchRequest.Fields = []string{"content"}
 
 	searchResult, err := b.index.Search(searchRequest)
 	if err != nil {
@@ -192,11 +195,18 @@ func (b *bleveIndex) Query(q string, topK int, tags []string) ([]Snippet, error)
 
 	var results []Snippet
 	for _, hit := range searchResult.Hits {
-		results = append(results, Snippet{
-			NoteID: hit.ID,
-			Score:  hit.Score,
-		})
-	}
+        var content string
+        if f, ok := hit.Fields["content"]; ok {
+            if s, ok2 := f.(string); ok2 {
+                content = s
+            }
+        }
+        results = append(results, Snippet{
+            NoteID:  hit.ID,
+            Excerpt: makeExcerpt(content, 160),
+            Score:   hit.Score,
+        })
+    }
 
 	return results, nil
 }
@@ -235,4 +245,17 @@ func OpenOrCreate(path string) (Index, error) {
 	}
 
 	return &bleveIndex{index: index}, nil
+}
+
+// makeExcerpt 以 rune 安全方式從內容擷取前 n 個字元（中文安全），避免空白 context。
+func makeExcerpt(s string, n int) string {
+    s = strings.TrimSpace(s)
+    if s == "" || n <= 0 {
+        return ""
+    }
+    rs := []rune(s)
+    if len(rs) <= n {
+        return string(rs)
+    }
+    return string(rs[:n])
 }
