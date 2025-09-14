@@ -2,11 +2,15 @@ package core
 
 import (
 	"bytes"
+	"context"
 	"os"
 	"strings"
 	"testing"
 
+	"github.com/wtg42/ora-ora-ora/agent"
 	"github.com/wtg42/ora-ora-ora/config"
+	"github.com/wtg42/ora-ora-ora/model"
+	"github.com/wtg42/ora-ora-ora/search"
 )
 
 // TestAsk_NoLLM_PrintsIDs verifies that --no-llm prints snippet IDs only.
@@ -126,5 +130,50 @@ func TestAsk_FlagCombinations(t *testing.T) {
 	}
 }
 
-// minimal helper to avoid importing io for Go <1.20 if constrained
-// no longer needed: we inject writers directly
+// TestAsk_WithLLM_UsesTemplateAndPrintsAnswer tests LLM call when snippets are available.
+func TestAsk_WithLLM_UsesTemplateAndPrintsAnswer(t *testing.T) {
+	cfg := config.DefaultConfig()
+	var buf bytes.Buffer
+
+	// Mock index with snippets
+	mockIndex := &mockIndex{
+		snippets: []search.Snippet{
+			{NoteID: "n1", Excerpt: "test content"},
+		},
+	}
+
+	// Mock LLM
+	mockLLM := &mockLLM{response: "mocked answer"}
+
+	err := AskCmd([]string{"test question"}, &cfg, WithWriters(&buf, &buf), WithIndexProvider(func() (search.Index, error) {
+		return mockIndex, nil
+	}), WithLLMProvider(func(host, model string) agent.LLM {
+		return mockLLM
+	}))
+	if err != nil {
+		t.Fatalf("AskCmd: %v", err)
+	}
+	if !strings.Contains(buf.String(), "mocked answer") {
+		t.Errorf("Expected 'mocked answer' in output, got: %q", buf.String())
+	}
+}
+
+// mockIndex implements search.Index for testing
+type mockIndex struct {
+	snippets []search.Snippet
+}
+
+func (m *mockIndex) IndexNote(note model.Note) error { return nil }
+func (m *mockIndex) Query(q string, topK int, tags []string) ([]search.Snippet, error) {
+	return m.snippets, nil
+}
+func (m *mockIndex) Close() error { return nil }
+
+// mockLLM implements agent.LLM for testing
+type mockLLM struct {
+	response string
+}
+
+func (m *mockLLM) Chat(ctx context.Context, system, user string, opts agent.Options) (string, error) {
+	return m.response, nil
+}

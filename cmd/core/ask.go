@@ -23,6 +23,7 @@ type Option func(*askDeps)
 
 type askDeps struct {
 	indexProvider func() (search.Index, error)
+	llmProvider   func(host, model string) agent.LLM
 	out           io.Writer
 	err           io.Writer
 }
@@ -38,6 +39,11 @@ func WithWriters(out, err io.Writer) Option {
 		d.out = out
 		d.err = err
 	}
+}
+
+// WithLLMProvider 允許注入 LLM 客戶端建立邏輯。
+func WithLLMProvider(p func(host, model string) agent.LLM) Option {
+	return func(d *askDeps) { d.llmProvider = p }
 }
 
 func AskCmd(argv []string, cfg *config.Config, opts ...Option) error {
@@ -130,10 +136,11 @@ func AskCmd(argv []string, cfg *config.Config, opts ...Option) error {
 	contextText := b.String()
 
 	// load template
-	tpl, warn := prompt.LoadAskTemplate(*templatePath)
-	if warn != "" {
-		fmt.Fprintln(dep.out, warn)
-	}
+    tpl, warn := prompt.LoadAskTemplate(*templatePath)
+    if warn != "" {
+        // 警示訊息走 stderr，以符合文件預期與 CLI 慣例
+        fmt.Fprintln(dep.err, warn)
+    }
 	system := strings.ReplaceAll(tpl.System, "{{question}}", question)
 	system = strings.ReplaceAll(system, "{{context}}", contextText)
 	user := strings.ReplaceAll(tpl.User, "{{question}}", question)
@@ -147,17 +154,62 @@ func AskCmd(argv []string, cfg *config.Config, opts ...Option) error {
 		}
 	}
 
-	llm := agent.NewClient(*host, *model)
-	out, err := llm.Chat(context.Background(), system, user, agent.Options{
-		Temperature: *temp,
-		TopP:        *topP,
-		NumCtx:      *numCtx,
-		NumPredict:  *numPredict,
-		KeepAlive:   ka,
-	})
-	if err != nil {
-		return fmt.Errorf("llm: %w", err)
+	var llm agent.LLM
+	if dep.llmProvider != nil {
+		llm = dep.llmProvider(*host, *model)
+	} else {
+		llm = agent.NewClient(*host, *model)
 	}
-	fmt.Fprintln(dep.out, out)
-	return nil
+    out, err := llm.Chat(context.Background(), system, user, agent.Options{
+        Temperature: *temp,
+        TopP:        *topP,
+        NumCtx:      *numCtx,
+        NumPredict:  *numPredict,
+        KeepAlive:   ka,
+    })
+    if err != nil {
+        return fmt.Errorf("llm: %w", err)
+    }
+    cleaned := sanitizeLLMOutput(out)
+    if strings.TrimSpace(cleaned) == "" {
+        // LLM 回覆為空或僅殘留角色標記時，回退輸出最相關片段，避免使用者以為無結果。
+        fmt.Fprintln(dep.out, fallbackFromSnippets(snippets, 3))
+        return nil
+    }
+    fmt.Fprintln(dep.out, cleaned)
+    return nil
+}
+
+// sanitizeLLMOutput 移除常見的聊天模板殘留前綴（例如 assistant 標籤），避免污染 CLI 輸出。
+// 僅針對開頭少量已知片段做保守處理，避免過度刪除有效內容。
+func sanitizeLLMOutput(s string) string {
+    t := strings.TrimLeft(s, "\n\r \t")
+    // 常見殘留："**.assistant", "**assistant", "assistant:", "Assistant:", "<|assistant|>", "assistant"
+    prefixes := []string{"**.assistant", "**assistant", "assistant:", "Assistant:", "<|assistant|>", "assistant"}
+    for _, p := range prefixes {
+        if strings.HasPrefix(t, p) {
+            t = strings.TrimLeft(t[len(p):], "\n\r \t:>")
+            break
+        }
+    }
+    return t
+}
+
+// fallbackFromSnippets 在 LLM 無有效回覆時，輸出前 n 個檢索片段的簡短清單。
+func fallbackFromSnippets(snips []search.Snippet, n int) string {
+    if len(snips) == 0 {
+        return "未取得 LLM 回覆。"
+    }
+    if n <= 0 { n = 3 }
+    if n > len(snips) { n = len(snips) }
+    var b strings.Builder
+    b.WriteString("未取得 LLM 回覆；以下為相關片段：\n")
+    for i := 0; i < n; i++ {
+        txt := strings.TrimSpace(snips[i].Excerpt)
+        if txt == "" { txt = snips[i].NoteID }
+        b.WriteString("- ")
+        b.WriteString(txt)
+        if i < n-1 { b.WriteString("\n") }
+    }
+    return b.String()
 }
