@@ -16,6 +16,12 @@ import (
 	"github.com/wtg42/ora-ora-ora/model"
 )
 
+type AddMessage struct {
+	Role    string
+	Content string
+	TS      time.Time
+}
+
 // AddWizardModel：以聊天模式蒐集 add 所需參數（僅彙整與顯示，不進行儲存）。
 type AddWizardModel struct {
 	history     viewport.Model
@@ -24,7 +30,7 @@ type AddWizardModel struct {
 	width       int
 	height      int
 	inputHeight int // 動態調整輸入框高度
-	messages    []Message
+	messages    []AddMessage
 	quitting    bool
 	// dependencies for saving/indexing
 	saver   noteSaver
@@ -220,15 +226,15 @@ func (m AddWizardModel) View() string {
 // --- internal helpers ---
 
 func (m *AddWizardModel) appendUser(content string) {
-	m.messages = append(m.messages, Message{Role: "user", Content: content, TS: time.Now()})
+	m.messages = append(m.messages, AddMessage{Role: "user", Content: content, TS: time.Now()})
 	m.refreshHistory()
 }
 func (m *AddWizardModel) appendAssistant(content string) {
-	m.messages = append(m.messages, Message{Role: "assistant", Content: content, TS: time.Now()})
+	m.messages = append(m.messages, AddMessage{Role: "assistant", Content: content, TS: time.Now()})
 	m.refreshHistory()
 }
 func (m *AddWizardModel) appendSystem(content string) {
-	m.messages = append(m.messages, Message{Role: "system", Content: content, TS: time.Now()})
+	m.messages = append(m.messages, AddMessage{Role: "system", Content: content, TS: time.Now()})
 	m.refreshHistory()
 }
 func (m *AddWizardModel) refreshHistory() {

@@ -358,16 +358,16 @@ func NewOraCmdRoot() *cobra.Command {
 
 // Diag 提供環境診斷：檢查 Ollama 連線、notes 目錄可寫、模板可讀。
 func (o *OraCmd) Diag() *cobra.Command {
-    var (
-        host string
-        tpl  string
-        indexDir string
-    )
-    cmd := &cobra.Command{
-        Use:   "diag",
-        Short: "診斷環境（Ollama/路徑/模板）",
-        RunE: func(cmd *cobra.Command, args []string) error {
-            out := cmd.OutOrStdout()
+	var (
+		host     string
+		tpl      string
+		indexDir string
+	)
+	cmd := &cobra.Command{
+		Use:   "diag",
+		Short: "診斷環境（Ollama/路徑/模板）",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			out := cmd.OutOrStdout()
 
 			// Ollama host
 			if host == "" {
@@ -382,52 +382,52 @@ func (o *OraCmd) Diag() *cobra.Command {
 				fmt.Fprintln(out, "Ollama: reachable")
 			}
 
-            // Notes dir writability (use notes-dir flag if provided)
-            notesDir, _ := cmd.Root().Flags().GetString("notes-dir")
-            if notesDir == "" {
-                // fallback default
-                notesDir = "data/notes"
-            }
-            if err := diagWritable(notesDir); err != nil {
-                fmt.Fprintf(out, "NotesDir: not writable (%v)\n", err)
-            } else {
-                fmt.Fprintln(out, "NotesDir: writable")
-            }
+			// Notes dir writability (use notes-dir flag if provided)
+			notesDir, _ := cmd.Root().Flags().GetString("notes-dir")
+			if notesDir == "" {
+				// fallback default
+				notesDir = "data/notes"
+			}
+			if err := diagWritable(notesDir); err != nil {
+				fmt.Fprintf(out, "NotesDir: not writable (%v)\n", err)
+			} else {
+				fmt.Fprintln(out, "NotesDir: writable")
+			}
 
-            // Index dir check (basic create/open permission)
-            if indexDir != "" {
-                if err := os.MkdirAll(indexDir, 0o755); err != nil {
-                    fmt.Fprintf(out, "IndexDir: not creatable (%v)\n", err)
-                } else {
-                    fmt.Fprintln(out, "IndexDir: ok")
-                }
-            } else {
-                fmt.Fprintln(out, "IndexDir: skipped (no path)")
-            }
+			// Index dir check (basic create/open permission)
+			if indexDir != "" {
+				if err := os.MkdirAll(indexDir, 0o755); err != nil {
+					fmt.Fprintf(out, "IndexDir: not creatable (%v)\n", err)
+				} else {
+					fmt.Fprintln(out, "IndexDir: ok")
+				}
+			} else {
+				fmt.Fprintln(out, "IndexDir: skipped (no path)")
+			}
 
 			// Template readability
-            if tpl != "" {
-                if _, err := os.Stat(tpl); err == nil {
-                    // 簡易驗證 YAML 結構
-                    if warn := diagTemplateKeys(tpl); warn != "" {
-                        fmt.Fprintf(out, "Template: warn (%s)\n", warn)
-                    } else {
-                        fmt.Fprintln(out, "Template: ok")
-                    }
-                } else {
-                    fmt.Fprintf(out, "Template: not found (%v)\n", err)
-                }
-            } else {
-                fmt.Fprintln(out, "Template: skipped (no path)")
-            }
+			if tpl != "" {
+				if _, err := os.Stat(tpl); err == nil {
+					// 簡易驗證 YAML 結構
+					if warn := diagTemplateKeys(tpl); warn != "" {
+						fmt.Fprintf(out, "Template: warn (%s)\n", warn)
+					} else {
+						fmt.Fprintln(out, "Template: ok")
+					}
+				} else {
+					fmt.Fprintf(out, "Template: not found (%v)\n", err)
+				}
+			} else {
+				fmt.Fprintln(out, "Template: skipped (no path)")
+			}
 
-            return nil
-        },
-    }
-    cmd.Flags().StringVar(&host, "ollama-host", "", "override Ollama host for check")
-    cmd.Flags().StringVar(&tpl, "template", "", "template path to verify")
-    cmd.Flags().StringVar(&indexDir, "index-dir", "", "bleve index directory to verify")
-    return cmd
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&host, "ollama-host", "", "override Ollama host for check")
+	cmd.Flags().StringVar(&tpl, "template", "", "template path to verify")
+	cmd.Flags().StringVar(&indexDir, "index-dir", "", "bleve index directory to verify")
+	return cmd
 }
 
 func diagOllama(host string) error {
@@ -460,13 +460,13 @@ func diagWritable(dir string) error {
 
 // diagTemplateKeys 做最小 YAML 檢查：需存在 system 或 user 任一鍵。
 func diagTemplateKeys(path string) string {
-    b, err := os.ReadFile(path)
-    if err != nil {
-        return err.Error()
-    }
-    s := string(b)
-    if !strings.Contains(s, "system:") && !strings.Contains(s, "user:") {
-        return "missing keys: system/user"
-    }
-    return ""
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return err.Error()
+	}
+	s := string(b)
+	if !strings.Contains(s, "system:") && !strings.Contains(s, "user:") {
+		return "missing keys: system/user"
+	}
+	return ""
 }

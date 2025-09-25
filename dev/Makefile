@@ -268,3 +268,12 @@ ask-run-cases:
 	    go -C $(ROOT) run . --notes-dir $(NOTES_DIR) ask "$$QUESTION" $$TAGS_OPT $$TOPK_OPT --template $(BEGINNER_TEMPLATE) --model "$$MODEL" 2>&1 | tee -a "$$OUT"; \
 	done < $(CURDIR)/ask-cases.txt; \
 	echo "[cases] 完成，輸出於 $$OUT"
+
+## Test targets for opencode SDK integration (TDD verification)
+## Runs specific tests in core/ and tui/ with coverage
+test-opencode-sdk:
+	GOCACHE=$(GCACHE) go -C $(ROOT) test ./tui -run TestLLMInterface -coverprofile=coverage_tui.out -covermode=atomic
+	@echo "Opencode SDK integration tests completed with coverage."
+
+test-all: test-opencode-sdk
+

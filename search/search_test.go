@@ -1,13 +1,13 @@
 package search
 
 import (
-    "os"
-    "path/filepath"
-    "testing"
-    "time"
-    "strings"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
 
-    "github.com/wtg42/ora-ora-ora/model"
+	"github.com/wtg42/ora-ora-ora/model"
 )
 
 // 目標：以 TDD 驅動 Index 介面
@@ -278,35 +278,59 @@ func TestBlevePersistence(t *testing.T) {
 
 // 新增：查詢結果應帶有 excerpt，供 ask 組裝上下文與 LLM 使用。
 func TestInMemory_Query_ReturnsExcerpt(t *testing.T) {
-    idx, err := OpenOrCreate("")
-    if err != nil { t.Fatalf("OpenOrCreate: %v", err) }
-    defer idx.Close()
+	idx, err := OpenOrCreate("")
+	if err != nil {
+		t.Fatalf("OpenOrCreate: %v", err)
+	}
+	defer idx.Close()
 
-    long := strings.Repeat("測試內容", 50) // > 160 runes
-    note := model.Note{ID: "e1", Content: long, Tags: []string{"dev"}, CreatedAt: time.Now()}
-    if err := idx.IndexNote(note); err != nil { t.Fatalf("IndexNote: %v", err) }
+	long := strings.Repeat("測試內容", 50) // > 160 runes
+	note := model.Note{ID: "e1", Content: long, Tags: []string{"dev"}, CreatedAt: time.Now()}
+	if err := idx.IndexNote(note); err != nil {
+		t.Fatalf("IndexNote: %v", err)
+	}
 
-    got, err := idx.Query("測試", 1, nil)
-    if err != nil { t.Fatalf("Query: %v", err) }
-    if len(got) != 1 { t.Fatalf("want 1, got %d", len(got)) }
-    if got[0].Excerpt == "" { t.Fatalf("excerpt should not be empty") }
-    if len([]rune(got[0].Excerpt)) > 160 { t.Fatalf("excerpt too long: %d", len([]rune(got[0].Excerpt))) }
+	got, err := idx.Query("測試", 1, nil)
+	if err != nil {
+		t.Fatalf("Query: %v", err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("want 1, got %d", len(got))
+	}
+	if got[0].Excerpt == "" {
+		t.Fatalf("excerpt should not be empty")
+	}
+	if len([]rune(got[0].Excerpt)) > 160 {
+		t.Fatalf("excerpt too long: %d", len([]rune(got[0].Excerpt)))
+	}
 }
 
 func TestBleve_Query_ReturnsExcerpt(t *testing.T) {
-    tmp := t.TempDir()
-    path := filepath.Join(tmp, "e.bleve")
-    idx, err := OpenOrCreate(path)
-    if err != nil { t.Fatalf("OpenOrCreate: %v", err) }
-    defer idx.Close()
+	tmp := t.TempDir()
+	path := filepath.Join(tmp, "e.bleve")
+	idx, err := OpenOrCreate(path)
+	if err != nil {
+		t.Fatalf("OpenOrCreate: %v", err)
+	}
+	defer idx.Close()
 
-    text := "golang bleve 測試內容，這是一段較長的說明，用於驗證 excerpt 是否回填。" + strings.Repeat("資料", 40)
-    note := model.Note{ID: "e2", Content: text, Tags: []string{"dev"}, CreatedAt: time.Now()}
-    if err := idx.IndexNote(note); err != nil { t.Fatalf("IndexNote: %v", err) }
+	text := "golang bleve 測試內容，這是一段較長的說明，用於驗證 excerpt 是否回填。" + strings.Repeat("資料", 40)
+	note := model.Note{ID: "e2", Content: text, Tags: []string{"dev"}, CreatedAt: time.Now()}
+	if err := idx.IndexNote(note); err != nil {
+		t.Fatalf("IndexNote: %v", err)
+	}
 
-    got, err := idx.Query("bleve", 1, nil)
-    if err != nil { t.Fatalf("Query: %v", err) }
-    if len(got) != 1 { t.Fatalf("want 1, got %d", len(got)) }
-    if got[0].Excerpt == "" { t.Fatalf("excerpt should not be empty (bleve)") }
-    if len([]rune(got[0].Excerpt)) > 160 { t.Fatalf("excerpt too long: %d", len([]rune(got[0].Excerpt))) }
+	got, err := idx.Query("bleve", 1, nil)
+	if err != nil {
+		t.Fatalf("Query: %v", err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("want 1, got %d", len(got))
+	}
+	if got[0].Excerpt == "" {
+		t.Fatalf("excerpt should not be empty (bleve)")
+	}
+	if len([]rune(got[0].Excerpt)) > 160 {
+		t.Fatalf("excerpt too long: %d", len([]rune(got[0].Excerpt)))
+	}
 }
