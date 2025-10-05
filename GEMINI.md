@@ -1,0 +1,50 @@
+metadata:
+  agent: Gemini CLI
+  agent_version: 1.0
+  model: Gemini
+  generated_at: 2025-10-03T12:00:00Z
+  source_refs:
+    - README.md
+    - go.mod
+    - cmd/ora/main.go
+    - internal/storage/xdg.go
+---
+# ora-ora-ora 專案概覽
+
+這是一個以 Go 語言為主的專案骨架，旨在打造一個 AI 快速筆記應用。它利用呼叫 shell 方式，透過 stdout 輸出，與 AI CLI agent 互動，以快速查詢和寫入筆記內容。同時，它提供基礎結構，用於管理應用程式的配置和資料目錄，遵循 XDG Base Directory Specification。核心功能是透過 `adrg/xdg` 函式庫來獲取並確保配置 (`ConfigHome`) 和資料 (`DataHome`) 目錄的存在。
+
+## 專案目的
+作為一個 Go 專案的基礎模板，它展示了如何組織程式碼、管理依賴，並處理應用程式的檔案系統互動。
+
+## 主要技術
+- **Go 語言**: 專案的主要開發語言。
+- **adrg/xdg**: 用於處理 XDG Base Directory Specification 的 Go 函式庫，確保應用程式在不同作業系統上能正確地儲存配置和資料。
+
+## 專案結構
+- `cmd/`: 包含可執行程式的入口點。例如，`cmd/ora/main.go` 是應用程式的主入口。
+- `internal/`: 包含專案內部使用的套件，不對外公開。例如，`internal/storage` 處理檔案儲存相關邏輯。
+- `pkg/`: （目前為空）預留給可重用的公開套件。
+- `*_test.go`: 專案的單元測試檔案。
+
+## 開發與貢獻指南
+
+### 開發方針
+- **任務拆分**: 在實作前，請先將功能拆分為小任務並寫入 `TODO.md`。
+- **進度更新**: 每完成一個任務後，請務必更新 `TODO.md` 中的進度。
+- **MVP 優先**: 以最小可行產品逐步交付，單次改動聚焦單一能力。
+- **TDD 開發**: 遵循 Red → Green → Refactor 流程。新增或變更功能前，應先編寫失敗的單元測試。
+- **測試政策**: 在 MVP 階段，主要要求單元測試；功能、整合和 E2E 測試將在 MVP 驗證後逐步補強。
+- **變更切小**: 避免一次性的大規模改動，尤其是由大型語言模型（LLM）產生的變更。
+- **AI 心智註解**: AI 代理人應遵循其內部規範，在程式碼中添加心智思維註解以利追蹤。
+
+### 常用指令
+以下是專案開發中常用的指令：
+
+```bash
+go mod tidy                   # 安裝/整理依賴
+go fmt ./... && go vet ./... # 格式化與靜態檢查
+go test ./... -cover         # 單元測試與覆蓋率
+```
+
+## 更多資訊
+請參考 `AGENTS.md` 以瞭解更詳細的貢獻與開發規範，包括風格指南、提交流程、安全考量和回滾策略。
