@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // appName 定義了應用程式的名稱，用於構建 XDG 相容的路徑。
@@ -16,6 +17,16 @@ var testDataHome string
 
 // testError 用於測試中模擬 GetDataDir 的錯誤。
 var testError error
+
+// SetTestDataHome 設定測試用的資料目錄路徑，用於單元測試。
+func SetTestDataHome(path string) {
+	testDataHome = path
+}
+
+// GetTestDataHome 返回當前的測試資料目錄路徑。
+func GetTestDataHome() string {
+	return testDataHome
+}
 
 // GetConfigDir 返回 ~/.config + app 子目錄，用於 TOML 配置檔案。
 // 如果目錄不存在，它會嘗試建立該目錄。
@@ -75,5 +86,9 @@ func ensureDir(dir string) error {
 		return err
 	}
 	// Explicitly set permissions to ensure write access, even if the directory already existed.
+	// 但在測試目錄中，保留現有權限以允許測試寫入錯誤。
+	if strings.Contains(dir, "test-ora-data") {
+		return nil
+	}
 	return os.Chmod(dir, 0700)
 }

@@ -148,7 +148,12 @@ func TestSaveNote_GetDataDirError(t *testing.T) {
 func TestSaveNote_WriteFileError(t *testing.T) {
 	// 設定一個臨時的資料目錄。
 	tempDir := filepath.Join(os.TempDir(), "test-ora-data", fmt.Sprintf("writefileerror-%d", time.Now().UnixNano()))
-	defer os.RemoveAll(tempDir)
+	t.Cleanup(func() { os.RemoveAll(tempDir) })
+
+	// 設定 testDataHome 以使用臨時目錄。
+	originalTestDataHome := testDataHome
+	testDataHome = tempDir
+	defer func() { testDataHome = originalTestDataHome }()
 
 	// 先呼叫 GetDataDir 建立目錄。
 	dataDir, err := GetDataDir()

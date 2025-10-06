@@ -5,41 +5,41 @@ import (
 	"fmt"
 
 	tea "github.com/charmbracelet/bubbletea"
-	// "github.com/wtg42/ora-ora-ora/internal/storage"
+	"github.com/wtg42/ora-ora-ora/internal/storage"
 )
 
 // viewState 是一個整數類型，用於表示 TUI 的當前視圖狀態。
 type viewState int
 
 const (
-	listView viewState = iota // 列表視圖，顯示所有筆記的標題。
-	detailView                   // 詳細視圖，顯示單個筆記的內容。
-	createView                   // 建立視圖，用於建立新筆記。
+	listView   viewState = iota // 列表視圖，顯示所有筆記的標題。
+	detailView                  // 詳細視圖，顯示單個筆記的內容。
+	createView                  // 建立視圖，用於建立新筆記。
 )
 
 // model 結構體包含了 TUI 應用程式的所有狀態。
 type model struct {
-	notes     []string // 筆記標題列表。
-	cursor    int      // 當前選中的筆記索引。
-	currentView viewState // 當前的視圖狀態。
-	selectedNoteContent string // 當前查看的筆記內容。
-	newNoteTitle string // 新筆記的標題。
-	newNoteContent string // 新筆記的內容。
-	errorMessage    string // 錯誤訊息，用於顯示給使用者。
+	notes               []string  // 筆記標題列表。
+	cursor              int       // 當前選中的筆記索引。
+	currentView         viewState // 當前的視圖狀態。
+	selectedNoteContent string    // 當前查看的筆記內容。
+	newNoteTitle        string    // 新筆記的標題。
+	newNoteContent      string    // 新筆記的內容。
+	errorMessage        string    // 錯誤訊息，用於顯示給使用者。
 }
 
 // InitialModel 函數返回一個初始化的 model 實例。
 // 它是 TUI 應用程式的起始狀態。
 func InitialModel() model {
-	// notes, err := storage.ListNotes()
-	// if err != nil {
-	// 	return model{
-	// 		currentView: listView,
-	// 		errorMessage:    fmt.Sprintf("Failed to load notes: %v", err),
-	// 	}
-	// }
+	notes, err := storage.ListNotes()
+	if err != nil {
+		return model{
+			currentView:  listView,
+			errorMessage: fmt.Sprintf("Failed to load notes: %v", err),
+		}
+	}
 	return model{
-		// notes:     notes,
+		notes:       notes,
 		currentView: listView,
 	}
 }
@@ -76,19 +76,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "enter":
 			if m.currentView == listView && len(m.notes) > 0 {
 				selectedTitle := m.notes[m.cursor]
-				// content, err := storage.ReadNote(selectedTitle)
-				// if err != nil {
-				// 	m.errorMessage = fmt.Sprintf("Failed to read note: %v", err)
-				// } else {
-				// 	m.selectedNoteContent = content
-				// 	m.currentView = detailView
-				// }
+				content, err := storage.ReadNote(selectedTitle)
+				if err != nil {
+					m.errorMessage = fmt.Sprintf("Failed to read note: %v", err)
+				} else {
+					m.selectedNoteContent = content
+					m.currentView = detailView
+				}
 			}
-
 		case "esc":
 			if m.currentView == detailView {
 				m.currentView = listView
 				m.selectedNoteContent = ""
+			} else if m.currentView == createView {
+				m.currentView = listView
 			}
 		case "n": // New note
 			if m.currentView == listView {
