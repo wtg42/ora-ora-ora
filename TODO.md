@@ -24,8 +24,9 @@
     *   處理資料目錄無法建立或存取的情況。
     *   處理檔案寫入錯誤。
 
-5.  **測試**:
-    *   為筆記寫入邏輯編寫單元測試。
+5.  **測試**: (已完成)
+    *   已為筆記寫入與儲存邏輯編寫單元測試（`internal/note` 覆蓋率 100.0%，`internal/storage` 覆蓋率 86.7%）。
+    *   待辦：`internal/tui` 測試編譯失敗需修復（不影響筆記相關模組覆蓋率）。
 
 ### XDG 路徑重構 (已完成)
 
@@ -44,3 +45,13 @@
 2.  **驗證與測試：**
     *   執行所有單元測試 (`go test ./... -cover`)，確保路徑建構邏輯正確。
     *   手動驗證在 macOS 上，`GetConfigDir()` 返回 `~/.config/ora-ora-ora`，`GetDataDir()` 返回 `~/.local/share/ora-ora-ora/notes`。
+
+## TUI 測試待修清單
+
+以下問題導致 `internal/tui` 測試編譯失敗，需後續修復：
+
+- `internal/tui/model.go:78`：未使用變數 `selectedTitle`。
+- `internal/tui/model_test.go:53`：未使用變數 `m`。
+- `internal/tui/model_test.go:110` 與 `:125`：`tea.KeyMsg` 結構初始化使用不存在欄位 `String`，需依目前 bubbletea 版本改用正確欄位（如 `Type`、`Rune` 等）或以事件幫手函式建立鍵盤訊息。
+
+註：上述問題不影響 `internal/note` 與 `internal/storage` 測試結果與覆蓋率。

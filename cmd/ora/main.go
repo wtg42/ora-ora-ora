@@ -13,7 +13,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/wtg42/ora-ora-ora/internal/note"
 	"github.com/wtg42/ora-ora-ora/internal/storage"
-	"github.com/adrg/xdg"
 )
 
 // rootCmd 是整個 Ora 應用程式的基礎命令。
@@ -21,7 +20,7 @@ import (
 var rootCmd = &cobra.Command{
 	Use:   "ora",
 	Short: "Ora 是一個 AI 快速筆記應用程式",
-	Long:  `Ora 是一個用於快速建立和管理筆記的命令列應用程式，旨在與 AI CLI 代理互動。`, 
+	Long:  `Ora 是一個用於快速建立和管理筆記的命令列應用程式，旨在與 AI CLI 代理互動。`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// 如果沒有給定子命令，則執行此處的預設行為。
 		fmt.Println("歡迎使用 Ora！使用 'ora --help' 獲取更多資訊。")
@@ -33,7 +32,7 @@ var rootCmd = &cobra.Command{
 var noteCmd = &cobra.Command{
 	Use:   "note",
 	Short: "管理您的筆記",
-	Long:  `提供用於建立、查看和管理筆記的命令。`, 
+	Long:  `提供用於建立、查看和管理筆記的命令。`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// 如果沒有給定 note 子命令，則顯示 note 命令的幫助資訊。
 		cmd.Help()
@@ -45,10 +44,10 @@ var noteCmd = &cobra.Command{
 var noteNewCmd = &cobra.Command{
 	Use:   "new",
 	Short: "建立一個新筆記",
-	Long:  `透過提示輸入標題、內容和可選標籤來互動式地建立一個新筆記。`, 
+	Long:  `透過提示輸入標題、內容和可選標籤來互動式地建立一個新筆記。`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// 執行應用程式初始化，獲取配置和資料目錄。
-		configDir, dataDir, err := runApp() 
+		configDir, dataDir, err := runApp()
 		if err != nil {
 			log.Fatalf("應用程式錯誤: %v", err)
 		}
@@ -133,8 +132,6 @@ func init() {
 
 // main 函數是應用程式的入口點。
 func main() {
-	fmt.Printf("XDG Config Home: %s\n", xdg.ConfigHome)
-    fmt.Printf("XDG Data Home: %s\n", xdg.DataHome)
 	// 執行 rootCmd，解析命令列參數並執行對應的命令。
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "錯誤: %v\n", err)

@@ -23,6 +23,6 @@ go test ./... -cover         # 單元測試與覆蓋率
 
 ### 筆記與資料儲存
 本專案遵循 XDG Base Directory Specification 管理應用程式的配置和資料。筆記內容（Markdown 格式）將儲存在由 `internal/storage/xdg.go` 定義的資料目錄中。
-具體來說，筆記會存放在類似 `~/.local/share/ora-ora-ora/notes/` (Linux) 或 `~/Library/Application Support/ora-ora-ora/notes/` (macOS) 的路徑下，確保檔案系統的整潔與跨平台相容性。
+具體來說，筆記會存放在類似 `~/.local/share/ora-ora-ora/notes/`，確保檔案系統的整潔與跨平台相容性。
 
 更多細節請見 `AGENTS.md`（風格、提交流程、安全與回滾策略）。

@@ -3,7 +3,6 @@ module github.com/wtg42/ora-ora-ora
 go 1.25.1
 
 require (
-	github.com/adrg/xdg v0.5.3
 	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/spf13/cobra v1.10.1
 	github.com/stretchr/testify v1.9.0
