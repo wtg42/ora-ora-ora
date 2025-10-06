@@ -7,10 +7,10 @@ import (
 
 // Note 結構體代表應用程式中的單一筆記條目。
 type Note struct {
-	Title     string    `json:"title"`       // 筆記的標題。
-	Content   string    `json:"content"`     // 筆記的內容。
+	Title     string    `json:"title"`          // 筆記的標題。
+	Content   string    `json:"content"`        // 筆記的內容。
 	Tags      []string  `json:"tags,omitempty"` // 筆記的標籤，可選。
-	CreatedAt time.Time `json:"created_at"`  // 筆記的建立時間。
+	CreatedAt time.Time `json:"created_at"`     // 筆記的建立時間。
 }
 
 // NewNote 函數建立一個新的 Note 實例。

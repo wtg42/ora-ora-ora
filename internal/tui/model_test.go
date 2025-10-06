@@ -2,7 +2,6 @@
 package tui
 
 import (
-	"io/ioutil"
 	"os"
 	"testing"
 	"time"
@@ -16,7 +15,7 @@ import (
 
 // setupTestDataDir 是一個輔助函數，用於建立一個臨時的資料目錄並覆蓋測試資料目錄，以便進行測試。
 func setupTestDataDir(t *testing.T) (string, func()) {
-	tempDir, err := ioutil.TempDir("", "testdata")
+	tempDir, err := os.MkdirTemp("", "testdata")
 	require.NoError(t, err)
 
 	oldTestDataDir := storage.GetTestDataHome()

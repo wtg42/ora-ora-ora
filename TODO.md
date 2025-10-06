@@ -81,3 +81,28 @@
     *   修正測試邏輯，使用臨時目錄並調整 `ensureDir` 以在測試中保留權限。
 
 4.  **重新運行所有測試：** (已完成) 確保 `internal/storage` 測試通過；`internal/tui` 測試因已知編譯錯誤暫未修復。
+
+### 移除 `io/ioutil` 棄用套件
+
+**目標：** 將專案中所有 `io/ioutil` 的使用替換為 `io` 或 `os` 套件中對應的功能，以符合 Go 1.16+ 的最佳實踐。
+
+**待處理任務：**
+
+1.  **識別所有 `io/ioutil` 的使用：** (已完成)
+    *   透過程式碼搜尋，找出所有導入和使用 `io/ioutil` 的地方。
+
+2.  **替換為 `io` 或 `os` 的對應功能：** (已完成)
+    *   根據具體使用場景，將 `ioutil.ReadFile` 替換為 `os.ReadFile`。
+    *   將 `ioutil.WriteFile` 替換為 `os.WriteFile`。
+    *   將 `ioutil.TempDir` 替換為 `os.MkdirTemp`。
+    *   將 `ioutil.TempFile` 替換為 `os.CreateTemp`。
+    *   將 `ioutil.NopCloser` 替換為 `io.NopCloser`。
+    *   將 `ioutil.ReadAll` 替換為 `io.ReadAll`。
+
+3.  **更新導入語句：** (已完成)
+    *   移除不再需要的 `"io/ioutil"` 導入。
+
+4.  **運行測試並驗證：** (已完成)
+    *   執行 `go mod tidy` 清理依賴。
+    *   執行 `go fmt ./... && go vet ./...` 格式化與靜態檢查。
+    *   執行 `go test ./... -cover` 確保所有測試通過，並且沒有新的編譯錯誤或警告。
