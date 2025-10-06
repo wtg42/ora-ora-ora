@@ -70,5 +70,10 @@ func GetDataDir() (string, error) {
 // ensureDir 是一個輔助函數，用於確保給定的目錄存在。
 // 如果目錄不存在，它會以 0700 的權限建立它。
 func ensureDir(dir string) error {
-	return os.MkdirAll(dir, 0700)
+	err := os.MkdirAll(dir, 0700)
+	if err != nil {
+		return err
+	}
+	// Explicitly set permissions to ensure write access, even if the directory already existed.
+	return os.Chmod(dir, 0700)
 }
