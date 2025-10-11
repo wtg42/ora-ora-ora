@@ -10,9 +10,11 @@ import (
 	"strings"
 	"time"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 	"github.com/wtg42/ora-ora-ora/internal/note"
 	"github.com/wtg42/ora-ora-ora/internal/storage"
+	"github.com/wtg42/ora-ora-ora/internal/tui"
 )
 
 // rootCmd 是整個 Ora 應用程式的基礎命令。
@@ -104,6 +106,21 @@ var noteNewCmd = &cobra.Command{
 	},
 }
 
+// tuiCmd 是一個用於啟動 TUI 介面的子命令。
+// 它使用 BubbleTea 框架來提供互動式終端使用者介面。
+var tuiCmd = &cobra.Command{
+	Use:   "tui",
+	Short: "啟動 TUI 介面",
+	Long:  `啟動互動式終端使用者介面來管理筆記。`,
+	Run: func(cmd *cobra.Command, args []string) {
+		p := tea.NewProgram(tui.InitialModel())
+		if _, err := p.Run(); err != nil {
+			fmt.Fprintf(os.Stderr, "TUI 錯誤: %v\n", err)
+			os.Exit(1)
+		}
+	},
+}
+
 // runApp 包含應用程式的核心邏輯。
 // 它返回配置和資料目錄的路徑，如果獲取失敗則返回錯誤。
 func runApp() (string, string, error) {
@@ -128,6 +145,8 @@ func init() {
 	rootCmd.AddCommand(noteCmd)
 	// 將 noteNewCmd 添加為 noteCmd 的子命令。
 	noteCmd.AddCommand(noteNewCmd)
+	// 將 tuiCmd 添加為 rootCmd 的子命令。
+	rootCmd.AddCommand(tuiCmd)
 }
 
 // main 函數是應用程式的入口點。

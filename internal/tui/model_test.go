@@ -137,3 +137,33 @@ func TestUpdate_Quit(t *testing.T) {
 	_, cmd = m.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
 	assert.NotNil(t, cmd)
 }
+
+// TestUpdate_BasicKeyInput 測試基本鍵入事件處理，確保 Update 不 panic 並返回有效模型。
+func TestUpdate_BasicKeyInput(t *testing.T) {
+	m := InitialModel()
+
+	// 測試基本鍵入事件 'n'
+	updatedModel, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
+	assert.IsType(t, model{}, updatedModel)
+	assert.NotNil(t, updatedModel)
+}
+
+func TestSubmitPreservesWhitespace(t *testing.T) {
+	// AI 心智註解: 驗證提交時保留使用者輸入的縮排與尾端空白。
+	_, teardown := setupTestDataDir(t)
+	defer teardown()
+
+	m := InitialModel()
+	m.currentView = createView
+	m.inputArea = NewInputArea()
+
+	input := "Title\n  leading\n\ntrailing  "
+	updatedModel, _ := m.Update(SubmitMsg{Text: input})
+	m = updatedModel.(model)
+
+	require.Empty(t, m.errorMessage)
+
+	content, err := storage.ReadNote("Title")
+	require.NoError(t, err)
+	assert.Equal(t, "  leading\n\ntrailing  ", content)
+}

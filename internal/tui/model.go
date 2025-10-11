@@ -3,8 +3,10 @@ package tui
 
 import (
 	"fmt"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/wtg42/ora-ora-ora/internal/note"
 	"github.com/wtg42/ora-ora-ora/internal/storage"
 )
 
@@ -17,6 +19,11 @@ const (
 	createView                  // 建立視圖，用於建立新筆記。
 )
 
+// SubmitMsg 訊息表示用戶提交了輸入。
+type SubmitMsg struct {
+	Text string
+}
+
 // model 結構體包含了 TUI 應用程式的所有狀態。
 type model struct {
 	notes               []string  // 筆記標題列表。
@@ -26,6 +33,7 @@ type model struct {
 	newNoteTitle        string    // 新筆記的標題。
 	newNoteContent      string    // 新筆記的內容。
 	errorMessage        string    // 錯誤訊息，用於顯示給使用者。
+	inputArea           InputArea // 輸入區域組件。
 }
 
 // InitialModel 函數返回一個初始化的 model 實例。
@@ -36,11 +44,13 @@ func InitialModel() model {
 		return model{
 			currentView:  listView,
 			errorMessage: fmt.Sprintf("Failed to load notes: %v", err),
+			inputArea:    NewInputArea(),
 		}
 	}
 	return model{
 		notes:       notes,
 		currentView: listView,
+		inputArea:   NewInputArea(),
 	}
 }
 
@@ -99,8 +109,40 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 
+		if m.currentView == createView {
+			newIA, cmd := m.inputArea.Update(msg)
+			m.inputArea = newIA.(InputArea)
+			return m, cmd
+		}
+
 	case tea.WindowSizeMsg:
 		// 處理視窗大小調整事件。
+
+	case SubmitMsg:
+		lines := strings.Split(msg.Text, "\n")
+		if len(lines) == 0 {
+			lines = []string{""}
+		}
+		title := strings.TrimSpace(lines[0])
+		// AI 心智註解: 保留使用者原始內容，不裁剪前後空白，只做換行拆分後重組。
+		content := strings.Join(lines[1:], "\n")
+		if title == "" {
+			m.errorMessage = "筆記標題不能為空"
+			return m, nil
+		}
+		n := note.NewNote(title, content, nil)
+		err := storage.SaveNote(n)
+		if err != nil {
+			m.errorMessage = fmt.Sprintf("儲存筆記失敗: %v", err)
+		} else {
+			m.notes, err = storage.ListNotes()
+			if err != nil {
+				m.errorMessage = fmt.Sprintf("重新載入筆記失敗: %v", err)
+			} else {
+				m.currentView = listView
+				m.inputArea = NewInputArea()
+			}
+		}
 	}
 
 	return m, nil
@@ -142,7 +184,7 @@ func (m model) View() string {
 
 	case createView:
 		// 顯示建立新筆記的介面。
-		s := fmt.Sprintf("建立新筆記:\n\n標題: %s\n內容:\n%s\n\n(尚未實作: 輸入欄位。按下 'esc' 鍵取消，'q' 鍵退出。)\n", m.newNoteTitle, m.newNoteContent)
+		s := "建立新筆記:\n\n" + m.inputArea.View() + "\n\n按下 'esc' 鍵取消，'q' 鍵退出。\n"
 		return s
 	}
 	return ""
