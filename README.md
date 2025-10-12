@@ -25,4 +25,19 @@ go test ./... -cover         # 單元測試與覆蓋率
 本專案遵循 XDG Base Directory Specification 管理應用程式的配置和資料。筆記內容（Markdown 格式）將儲存在由 `internal/storage/xdg.go` 定義的資料目錄中。
 具體來說，筆記會存放在類似 `~/.local/share/ora-ora-ora/notes/`，確保檔案系統的整潔與跨平台相容性。
 
+### 筆記建立規則
+- 筆記內容不可為空。若嘗試儲存空內容筆記，將顯示錯誤訊息並拒絕寫入檔案。
+- 標題允許為空，但內容必須有值。
+
+### 清理空白筆記指南
+若有舊的空白筆記檔案（檔名如 `YYYYMMDDHHmmss-.md`），可手動刪除：
+```bash
+# 找到資料目錄
+echo ~/.local/share/ora-ora-ora/notes/
+# 檢查空白檔案（內容為空或僅有 front matter）
+find ~/.local/share/ora-ora-ora/notes/ -name "*.md" -exec sh -c 'if [ ! -s "$1" ] || grep -q "^---$" "$1" && ! tail -n +4 "$1" | grep -q "[^[:space:]]"; then echo "$1"; fi' _ {} \;
+# 刪除（請謹慎操作）
+# rm /path/to/empty/note.md
+```
+
 更多細節請見 `AGENTS.md`（風格、提交流程、安全與回滾策略）。

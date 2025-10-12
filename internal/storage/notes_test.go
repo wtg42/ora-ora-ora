@@ -98,6 +98,18 @@ func TestSaveNote(t *testing.T) {
 				assert.Contains(t, content, "title: \"\"")
 			},
 		},
+		{
+			name: "空內容",
+			note: &note.Note{
+				Title:     "測試",
+				Content:   "",
+				CreatedAt: time.Now(),
+			},
+			expectedErr: "內容不可為空",
+			validate: func(t *testing.T, filePath string) {
+				assert.NoFileExists(t, filePath) // 檔案不應該被建立
+			},
+		},
 	}
 
 	// 遍歷所有測試案例並執行。

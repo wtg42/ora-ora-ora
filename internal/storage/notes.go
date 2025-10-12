@@ -19,6 +19,11 @@ func SaveNote(n *note.Note) error {
 		return fmt.Errorf("獲取資料目錄失敗: %w", err)
 	}
 
+	// 驗證內容不可為空。
+	if strings.TrimSpace(n.Content) == "" {
+		return fmt.Errorf("內容不可為空")
+	}
+
 	// 檢查標題中是否存在非法字元，以避免檔案命名問題。
 	illegalChars := "/\\:*?\"<>|"
 	if strings.ContainsAny(n.Title, illegalChars) {

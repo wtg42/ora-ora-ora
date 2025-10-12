@@ -106,6 +106,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.currentView = createView
 				m.newNoteTitle = ""
 				m.newNoteContent = ""
+				m.inputArea = NewInputArea()
+				// AI 心智註解: 及早返回以阻斷當前鍵入事件落入輸入區，避免殘留字元。
+				return m, nil
 			}
 		}
 

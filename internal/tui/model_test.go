@@ -128,6 +128,17 @@ func TestUpdate_CreateNewNote(t *testing.T) {
 	assert.Equal(t, listView, m.currentView)
 }
 
+func TestCreateViewInputAreaStartsEmpty(t *testing.T) {
+	// AI 心智註解: 確保切換建立視圖後輸入區會回到乾淨狀態，避免遺留觸發鍵。
+	m := InitialModel()
+
+	updatedModel, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
+	m = updatedModel.(model)
+
+	require.Equal(t, createView, m.currentView)
+	assert.Equal(t, "", m.inputArea.Text())
+}
+
 // TestUpdate_Quit 測試退出應用程式的功能。
 func TestUpdate_Quit(t *testing.T) {
 	m := InitialModel()
